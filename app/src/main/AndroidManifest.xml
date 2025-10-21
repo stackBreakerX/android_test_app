@@ -4,6 +4,9 @@
 
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 添加读取图片权限以支持扫描图库 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
     <application
         android:name=".app.MyApplication"
@@ -54,6 +57,14 @@
             android:exported="false" />
         <activity
             android:name=".module_media.WebpLibwebpActivity"
+            android:exported="false" />
+        <!-- 注册 PNG 转换页面 -->
+        <activity
+            android:name=".module_media.PngConvertActivity"
+            android:exported="false" />
+        <!-- 注册 JPG 转换页面 -->
+        <activity
+            android:name=".module_media.JpgConvertActivity"
             android:exported="false" />
     </application>
 

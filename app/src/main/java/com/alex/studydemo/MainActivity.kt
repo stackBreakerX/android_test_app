@@ -202,6 +202,16 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    fun imagePngConvertDemo(view: View) {
+        val intent = android.content.Intent(this, com.alex.studydemo.module_media.PngConvertActivity::class.java)
+        startActivity(intent)
+    }
+
+    fun imageJpgConvertDemo(view: View) {
+        val intent = android.content.Intent(this, com.alex.studydemo.module_media.JpgConvertActivity::class.java)
+        startActivity(intent)
+    }
+
     fun testTryCatch(view: View) {
         lifecycleScope.launch(Dispatchers.IO + CoroutineExceptionHandler { coroutineContext, throwable ->
             println("error = $throwable")

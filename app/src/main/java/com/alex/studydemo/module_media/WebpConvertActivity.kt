@@ -63,6 +63,7 @@ class WebpConvertActivity : AppCompatActivity() {
     private fun convertUrisToWebp(uris: List<Uri>) {
         lifecycleScope.launch {
             binding.tvResult.text = "开始转换，共 ${uris.size} 张图片…"
+            val tAllStart = System.nanoTime()
 
             val semaphore = Semaphore(PARALLELISM)
             val results = uris.mapIndexed { index, uri ->
@@ -74,14 +75,24 @@ class WebpConvertActivity : AppCompatActivity() {
                                 return@withPermit false to "跳过非 JPG/PNG：$mime"
                             }
 
-                            val bitmap = decodeBitmap(uri) ?: return@withPermit false to "解码失败：$uri"
+                            val tStart = System.nanoTime()
 
+                            val tDecodeStart = System.nanoTime()
+                            val bitmap = decodeBitmap(uri) ?: return@withPermit false to "解码失败：$uri"
+                            val tDecodeMs = (System.nanoTime() - tDecodeStart) / 1_000_000
+
+                            val tEncodeStart = System.nanoTime()
                             val saved = saveWebp(bitmap, uri)
+                            val tEncodeMs = (System.nanoTime() - tEncodeStart) / 1_000_000
+
                             bitmap.recycle()
+
+                            val tTotalMs = (System.nanoTime() - tStart) / 1_000_000
+
                             return@withPermit if (saved != null) {
-                                true to "转换成功 -> $saved"
+                                true to "转换成功 -> $saved（解码 ${tDecodeMs}ms，写WebP ${tEncodeMs}ms，总 ${tTotalMs}ms）"
                             } else {
-                                false to "保存失败：$uri"
+                                false to "保存失败：$uri（解码 ${tDecodeMs}ms，写WebP ${tEncodeMs}ms，总 ${tTotalMs}ms）"
                             }
                         } catch (e: Exception) {
                             return@withPermit false to "异常：${e.message}"
@@ -96,8 +107,9 @@ class WebpConvertActivity : AppCompatActivity() {
 
             val successCount = results.count { it.first }
             val logs = results.joinToString("\n") { it.second }
-            binding.tvResult.text = "转换完成：成功 ${successCount}/${uris.size}\n\n$logs"
-            Toast.makeText(this@WebpConvertActivity, "转换完成：成功 ${successCount}/${uris.size}", Toast.LENGTH_LONG).show()
+            val totalMs = (System.nanoTime() - tAllStart) / 1_000_000
+            binding.tvResult.text = "转换完成：成功 ${successCount}/${uris.size}，用时 ${totalMs}ms\n\n$logs"
+            Toast.makeText(this@WebpConvertActivity, "转换完成：成功 ${successCount}/${uris.size}，${totalMs}ms", Toast.LENGTH_LONG).show()
         }
     }
 

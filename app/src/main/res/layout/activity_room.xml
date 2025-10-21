@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".module_room.RoomActivity"
+    >
+
+    <androidx.appcompat.widget.AppCompatEditText
+        android:id="@+id/etContent"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/dp_40"
+        android:layout_marginStart="@dimen/dp_10"
+        android:layout_marginTop="50dp"
+        android:layout_marginEnd="@dimen/dp_10"
+        android:layout_marginBottom="20dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        />
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        app:layout_constraintTop_toBottomOf="@+id/etContent"
+        >
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnAddMessage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="btnAddMessage - insert message(sql)"
+            android:textAllCaps="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnAddMessageApi"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="btnAddMessageApi - insert message(Api)"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/btnAddMessage"
+            />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnGetMessageApi"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="btnGetMessageApi - get message(Api)"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/btnAddMessage"
+            />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnAddUser"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="btnAddUser - insert user(sql)"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/btnAddMessageApi"
+            />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnAddUser1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="btnAddUser1 - insert user1(sql)"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/btnAddMessageApi"
+            />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnAddUserTransaction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="btnAddUserTransaction - insert user1(transaction)"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/btnAddUser1"
+            />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnUpdateUsers"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="btnUpdateUsers - update users"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/btnAddUser1"
+            />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnUpdateUsersNoRows"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="btnUpdateUsersNoRows - update users no rows"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/btnAddUser1"
+            />
+
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnTransactionTest"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="btnTransactionTest - test transaction"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/btnAddUser1"
+            />
+
+        <!--        <androidx.appcompat.widget.AppCompatButton-->
+        <!--            android:id="@+id/btnGetUser"-->
+        <!--            android:layout_width="wrap_content"-->
+        <!--            android:layout_height="wrap_content"-->
+        <!--            android:text="get user(api)"-->
+        <!--            app:layout_constraintStart_toStartOf="parent"-->
+        <!--            app:layout_constraintEnd_toEndOf="parent"-->
+        <!--            app:layout_constraintTop_toBottomOf="@+id/btnAddUser"-->
+        <!--            />-->
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

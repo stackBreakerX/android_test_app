@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".app.MyApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/icon_app"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/icon_app"
+        android:supportsRtl="true"
+        android:persistent="true"
+        android:theme="@style/Theme.StudyDemo">
+        <activity
+            android:name=".module_coroutine.ChannelActivity"
+            android:launchMode="singleTask"
+            android:exported="false" />
+        <activity
+            android:name=".module_recyclerview.RecyclerViewAnimationActivity"
+            android:exported="false" />
+        <activity
+            android:name=".module_view.CustomerViewActivity"
+            android:exported="false" />
+        <activity
+            android:name=".module_coroutine.FlowActivity"
+            android:exported="false" />
+        <activity
+            android:name=".module_room.RoomActivity"
+            android:exported="false" />
+        <activity android:name=".module_recyclerview.RecyclerViewActivity" />
+        <activity android:name=".module_recyclerview.RecyclerViewActivity1" />
+        <activity android:name=".network.monitor.NetworkMonitorActivity" />
+        <activity android:name=".module_advanced_function.AdvancedFunctionActivity" /> <!-- <activity android:name=".module_coroutine.CoroutineDemoActivity" /> -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".arouter.ArouterSecondActivity"
+            android:screenOrientation="fullSensor" />
+        <activity
+            android:name=".arouter.ArouterMainActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".module_media.WebpConvertActivity"
+            android:exported="false" />
+    </application>
+
+</manifest>

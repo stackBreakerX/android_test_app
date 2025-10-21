@@ -1,0 +1,217 @@
+plugins {
+    id 'com.android.application'
+//    id 'dagger.hilt.android.plugin'
+    id 'kotlin-android'
+    id 'kotlin-kapt'
+    id 'kotlin-parcelize'
+}
+
+//apply plugin: 'dagger.hilt.android.plugin'
+
+
+android {
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.alex.studydemo"
+        minSdkVersion 24
+        targetSdkVersion 36
+        versionCode 1
+        versionName "1.0"
+        multiDexEnabled true
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary true
+        }
+
+//        javaCompileOptions {
+//            annotationProcessorOptions {
+//                arguments += [AROUTER_MODULE_NAME: project.getName()]
+//            }
+//        }
+    }
+
+    buildTypes {
+        release {
+            debuggable false
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            debuggable false
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+
+        dev {
+            matchingFallbacks = ['debug']
+            debuggable true
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
+        }
+    }
+
+//    compileOptions {
+//        sourceCompatibility JavaVersion.VERSION_1_8
+//        targetCompatibility JavaVersion.VERSION_1_8
+//    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    packagingOptions {
+        exclude 'META-INF/gradle/incremental.annotation.processors'
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+    }
+
+    buildFeatures {
+        viewBinding true
+        dataBinding true
+//        compose true
+    }
+
+    namespace 'com.alex.studydemo'
+
+//    sourceSets {
+//        main {
+//            // 定义proto文件目录
+//            proto {
+//                srcDir 'src/main/proto'
+//                include '**/*.proto'
+//            }
+//        }
+//    }
+}
+
+kapt {
+    arguments {
+        arg("AROUTER_MODULE_NAME", project.getName())
+        arg("room.schemaLocation", "$projectDir/schemas".toString())
+    }
+}
+//protobuf {
+//    protoc {
+//        artifact = 'com.google.protobuf:protoc:3.0.0'
+//    }
+//    plugins {
+//        javalite {
+//            artifact = 'com.google.protobuf:protoc-gen-javalite:3.0.0'
+//        }
+//    }
+//    generateProtoTasks {
+//        all().each { task ->
+//            task.plugins {
+//                javalite {}
+//            }
+//        }
+//    }
+//}
+dependencies {
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:2.0.21"
+
+    //architecture components
+//    implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.8.0"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0"
+    implementation 'androidx.core:core-ktx:1.17.0'
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.9.2"
+
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
+    implementation 'com.google.android:flexbox:1.0.0'
+
+
+    //hilt
+//    kapt "com.google.dagger:hilt-android-compiler:2.28.3-alpha"
+
+//    implementation "com.google.dagger:hilt-android:2.38.1"
+//    kapt "com.google.dagger:hilt-compiler:2.38.1"
+//    kapt 'androidx.hilt:hilt-compiler:1.0.0'
+
+//    implementation 'androidx.hilt:hilt-lifecycle-viewmodel:1.0.0-alpha03'
+
+    //coroutine
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    //Arouter
+    implementation 'com.alibaba:arouter-api:1.5.1'
+//    implementation 'androidx.activity:activity-compose:1.10.1'
+//    implementation platform('androidx.compose:compose-bom:2025.08.00')
+//    implementation 'androidx.compose.ui:ui'
+//    implementation 'androidx.compose.ui:ui-graphics'
+//    implementation 'androidx.compose.ui:ui-tooling-preview'
+//    implementation 'androidx.compose.material3:material3'
+//
+//    androidTestImplementation platform('androidx.compose:compose-bom:2025.08.00')
+//    debugImplementation 'androidx.compose.ui:ui-tooling'
+//    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+    kapt 'com.alibaba:arouter-compiler:1.5.1'
+
+    //room
+    def room_version = "2.4.2"
+
+    implementation "androidx.room:room-runtime:$room_version"
+    kapt "androidx.room:room-compiler:$room_version"
+
+    // optional - Kotlin Extensions and Coroutines support for Room
+    implementation "androidx.room:room-ktx:$room_version"
+
+    // optional - Test helpers
+    testImplementation "androidx.room:room-testing:$room_version"
+
+    //protobuf
+//    implementation 'com.googlecode.protobuf-java-format:protobuf-java-format:1.2'
+
+
+    implementation 'com.github.CymChad:BaseRecyclerViewAdapterHelper:3.0.6'
+
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.0"
+
+    implementation 'androidx.multidex:multidex:2.0.1'
+
+    implementation "com.blankj:utilcodex:1.31.1"
+
+
+//    implementation 'com.facebook.litho:litho-core:0.50.2'
+//
+//    implementation 'com.facebook.litho:litho-widget-kotlin:0.50.2'
+//    kapt 'com.facebook.litho:litho-processor:0.50.2'
+//
+//    // SoLoader
+//    implementation 'com.facebook.soloader:soloader:0.10.5'
+//
+//    // For integration with Fresco
+//    implementation 'com.facebook.litho:litho-fresco:0.50.2'
+//
+//    implementation 'com.facebook.litho:litho-sections-core:0.50.2'
+//    implementation 'com.facebook.litho:litho-sections-widget:0.50.2'
+//    compileOnly 'com.facebook.litho:litho-sections-annotations:0.50.2'
+//
+//    implementation 'com.facebook.yoga:proguard-annotations:1.19.0'
+//
+//    kapt 'com.facebook.litho:lbitho-sections-processor:0.50.2'
+
+    api project(path: ':Lib')
+
+
+
+//    api project(path: ':im_sdk')
+//    api project(path: ':im_common')
+
+
+//    compile "com.google.protobuf:protobuf-lite:3.0.0"
+//    compile ('com.squareup.retrofit2:converter-protobuf:2.2.0') {
+//        exclude group: 'com.google.protobuf', module: 'protobuf-java'
+//    }
+}

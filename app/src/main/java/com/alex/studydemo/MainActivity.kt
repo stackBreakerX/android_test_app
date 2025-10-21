@@ -197,6 +197,11 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    fun imageWebpLibDemo(view: View) {
+        val intent = android.content.Intent(this, com.alex.studydemo.module_media.WebpLibwebpActivity::class.java)
+        startActivity(intent)
+    }
+
     fun testTryCatch(view: View) {
         lifecycleScope.launch(Dispatchers.IO + CoroutineExceptionHandler { coroutineContext, throwable ->
             println("error = $throwable")

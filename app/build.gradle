@@ -24,7 +24,11 @@ android {
         vectorDrawables {
             useSupportLibrary true
         }
-
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17"
+            }
+        }
 //        javaCompileOptions {
 //            annotationProcessorOptions {
 //                arguments += [AROUTER_MODULE_NAME: project.getName()]
@@ -77,6 +81,12 @@ android {
         viewBinding true
         dataBinding true
 //        compose true
+    }
+
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+        }
     }
 
     namespace 'com.alex.studydemo'

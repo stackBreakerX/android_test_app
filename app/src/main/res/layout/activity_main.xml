@@ -68,6 +68,14 @@
     <androidx.appcompat.widget.AppCompatButton
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="libwebp 转换"
+        android:onClick="imageWebpLibDemo"
+        android:textAllCaps="false"
+        />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:text="Test try catch"
         android:onClick="testTryCatch"
         android:textAllCaps="false"

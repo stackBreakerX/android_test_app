@@ -12,92 +12,83 @@ import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import com.alex.studydemo.databinding.ActivityWebpConvertBinding
+import androidx.lifecycle.lifecycleScope
+import com.alex.studydemo.databinding.ActivityWebpLibwebpBinding
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlin.math.min
-import java.io.BufferedOutputStream
+import kotlinx.coroutines.withContext
 import java.io.IOException
 
-class WebpConvertActivity : AppCompatActivity() {
+class WebpLibwebpActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityWebpConvertBinding
-
+    private lateinit var binding: ActivityWebpLibwebpBinding
     private lateinit var pickImagesLauncher: ActivityResultLauncher<Array<String>>
 
     private val MAX_DECODE_DIM = 2000
-    private val WEBP_QUALITY = 75
-    private val PARALLELISM = 1
+    private val WEBP_QUALITY = 75f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityWebpConvertBinding.inflate(layoutInflater)
+        binding = ActivityWebpLibwebpBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        binding.tvHeader.text = if (LibWebpNative.isAvailable) {
+            "libwebp JNI 已加载：使用原生编码"
+        } else {
+            "libwebp JNI 未加载：将使用 Bitmap.compress 作为降级"
+        }
 
         pickImagesLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             if (uris.isNullOrEmpty()) {
                 Toast.makeText(this, "未选择图片", Toast.LENGTH_SHORT).show()
             } else {
-                convertUrisToWebp(uris)
+                convertUris(uris)
             }
         }
 
-        binding.btnPickAndConvert.setOnClickListener {
-            // 使用系统图库选择多张图片
-            pickImages()
-        }
+        binding.btnPickAndConvert.setOnClickListener { pickImagesLauncher.launch(arrayOf("image/*")) }
     }
 
-    private fun pickImages() {
-        pickImagesLauncher.launch(arrayOf("image/*"))
-    }
-
-    private fun convertUrisToWebp(uris: List<Uri>) {
+    private fun convertUris(uris: List<Uri>) {
         lifecycleScope.launch {
             binding.tvResult.text = "开始转换，共 ${uris.size} 张图片…"
-
-            val semaphore = Semaphore(PARALLELISM)
-            val results = uris.mapIndexed { index, uri ->
-                async(Dispatchers.IO) {
-                    semaphore.withPermit {
-                        try {
-                            val mime = contentResolver.getType(uri) ?: guessMimeFromUri(uri)
-                            if (mime != null && !isJpgOrPng(mime)) {
-                                return@withPermit false to "跳过非 JPG/PNG：$mime"
-                            }
-
-                            val bitmap = decodeBitmap(uri) ?: return@withPermit false to "解码失败：$uri"
-
-                            val saved = saveWebp(bitmap, uri)
-                            bitmap.recycle()
-                            return@withPermit if (saved != null) {
-                                true to "转换成功 -> $saved"
-                            } else {
-                                false to "保存失败：$uri"
-                            }
-                        } catch (e: Exception) {
-                            return@withPermit false to "异常：${e.message}"
-                        } finally {
-                            withContext(Dispatchers.Main) {
-                                binding.tvResult.text = "处理中 (${index + 1}/${uris.size})…" 
-                            }
-                        }
+            var success = 0
+            val logs = StringBuilder()
+            withContext(Dispatchers.IO) {
+                for ((i, uri) in uris.withIndex()) {
+                    val mime = contentResolver.getType(uri) ?: guessMimeFromUri(uri)
+                    if (mime != null && !isJpgOrPng(mime)) {
+                        logs.append("跳过非 JPG/PNG：").append(mime).append('\n')
+                        continue
+                    }
+                    val bmp = decodeBitmap(uri)
+                    if (bmp == null) {
+                        logs.append("解码失败：").append(uri).append('\n')
+                        continue
+                    }
+                    val nativeBytes = LibWebpNative.tryEncode(bmp, WEBP_QUALITY)
+                    val savedUri = if (nativeBytes != null) {
+                        saveWebpBytes(nativeBytes, uri)
+                    } else {
+                        // 降级：使用平台 WebP
+                        saveWebpBitmap(bmp, uri)
+                    }
+                    bmp.recycle()
+                    if (savedUri != null) {
+                        success++
+                        logs.append("转换成功 -> ").append(savedUri).append('\n')
+                    } else {
+                        logs.append("保存失败：").append(uri).append('\n')
+                    }
+                    withContext(Dispatchers.Main) {
+                        binding.tvResult.text = "处理中 (${i + 1}/${uris.size})…"
                     }
                 }
-            }.awaitAll()
-
-            val successCount = results.count { it.first }
-            val logs = results.joinToString("\n") { it.second }
-            binding.tvResult.text = "转换完成：成功 ${successCount}/${uris.size}\n\n$logs"
-            Toast.makeText(this@WebpConvertActivity, "转换完成：成功 ${successCount}/${uris.size}", Toast.LENGTH_LONG).show()
+            }
+            binding.tvResult.text = "转换完成：成功 ${success}/${uris.size}\n\n$logs"
+            Toast.makeText(this@WebpLibwebpActivity, "转换完成：成功 ${success}/${uris.size}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -116,13 +107,13 @@ class WebpConvertActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val source = ImageDecoder.createSource(contentResolver, uri)
                 ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
-                    // 不改变目标尺寸，保持原分辨率
+                    // 保持原分辨率，不进行 setTargetSize
                     decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                     decoder.isMutableRequired = false
                 }
             } else {
                 val opts = BitmapFactory.Options().apply {
-                    // 保持原分辨率与色彩
+                    // 不降采样，保持 ARGB_8888 原始分辨率
                     inPreferredConfig = Bitmap.Config.ARGB_8888
                 }
                 contentResolver.openInputStream(uri)?.use { input ->
@@ -148,12 +139,9 @@ class WebpConvertActivity : AppCompatActivity() {
         return inSampleSize
     }
 
-    private fun saveWebp(bitmap: Bitmap, originalUri: Uri): Uri? {
+    private fun saveWebpBytes(data: ByteArray, originalUri: Uri): Uri? {
         val name = (getDisplayName(originalUri) ?: "image")
-            .replace(".jpeg", "")
-            .replace(".jpg", "")
-            .replace(".png", "") + ".webp"
-
+            .replace(".jpeg", "").replace(".jpg", "").replace(".png", "") + ".webp"
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
             put(MediaStore.Images.Media.MIME_TYPE, "image/webp")
@@ -162,24 +150,12 @@ class WebpConvertActivity : AppCompatActivity() {
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             }
         }
-
         val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val newUri = contentResolver.insert(collection, values) ?: return null
-
-//        var format = Bitmap.CompressFormat.WEBP
-        val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Bitmap.CompressFormat.WEBP_LOSSY
-        } else {
-            Bitmap.CompressFormat.WEBP
-        }
-
         return try {
-            contentResolver.openOutputStream(newUri)?.use { raw ->
-                BufferedOutputStream(raw).use { out ->
-                    val ok = bitmap.compress(format, WEBP_QUALITY, out)
-                    out.flush()
-                    if (!ok) return null
-                }
+            contentResolver.openOutputStream(newUri)?.use { out ->
+                out.write(data)
+                out.flush()
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val cv = ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }
@@ -187,8 +163,36 @@ class WebpConvertActivity : AppCompatActivity() {
             }
             newUri
         } catch (e: Exception) {
-            println("error = $e")
-            return null
+            null
+        }
+    }
+
+    private fun saveWebpBitmap(bitmap: Bitmap, originalUri: Uri): Uri? {
+        val name = (getDisplayName(originalUri) ?: "image")
+            .replace(".jpeg", "").replace(".jpg", "").replace(".png", "") + ".webp"
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, name)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/webp")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/StudyDemoWebP")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+        }
+        val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val newUri = contentResolver.insert(collection, values) ?: return null
+        val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
+        return try {
+            contentResolver.openOutputStream(newUri)?.use { out ->
+                val ok = bitmap.compress(format, WEBP_QUALITY.toInt(), out)
+                if (!ok) return null
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val cv = ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }
+                contentResolver.update(newUri, cv, null, null)
+            }
+            newUri
+        } catch (e: Exception) {
+            null
         }
     }
 

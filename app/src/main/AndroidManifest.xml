@@ -52,6 +52,9 @@
         <activity
             android:name=".module_media.WebpConvertActivity"
             android:exported="false" />
+        <activity
+            android:name=".module_media.WebpLibwebpActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

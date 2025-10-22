@@ -7,6 +7,10 @@
     <!-- 添加读取图片权限以支持扫描图库 -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- 相机权限 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 写入外部存储权限 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
     <application
         android:name=".app.MyApplication"
@@ -66,6 +70,21 @@
         <activity
             android:name=".module_media.JpgConvertActivity"
             android:exported="false" />
+        <!-- 注册图片选择页面 -->
+        <activity
+            android:name=".module_image.ImagePickerActivity"
+            android:exported="false" />
     </application>
+
+    <!-- FileProvider 配置 -->
+    <provider
+        android:name="androidx.core.content.FileProvider"
+        android:authorities="${applicationId}.fileprovider"
+        android:exported="false"
+        android:grantUriPermissions="true">
+        <meta-data
+            android:name="android.support.FILE_PROVIDER_PATHS"
+            android:resource="@xml/file_paths" />
+    </provider>
 
 </manifest>

@@ -212,6 +212,11 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    fun imagePickerDemo(view: View) {
+        val intent = android.content.Intent(this, com.alex.studydemo.module_image.ImagePickerActivity::class.java)
+        startActivity(intent)
+    }
+
     fun testTryCatch(view: View) {
         lifecycleScope.launch(Dispatchers.IO + CoroutineExceptionHandler { coroutineContext, throwable ->
             println("error = $throwable")

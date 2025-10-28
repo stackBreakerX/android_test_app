@@ -74,17 +74,21 @@
         <activity
             android:name=".module_image.ImagePickerActivity"
             android:exported="false" />
+        <!-- 注册快速缩略图页面 -->
+        <activity
+            android:name=".module_image.FastThumbnailActivity"
+            android:exported="false" />
+        <!-- FileProvider 配置 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
-    <!-- FileProvider 配置 -->
-    <provider
-        android:name="androidx.core.content.FileProvider"
-        android:authorities="${applicationId}.fileprovider"
-        android:exported="false"
-        android:grantUriPermissions="true">
-        <meta-data
-            android:name="android.support.FILE_PROVIDER_PATHS"
-            android:resource="@xml/file_paths" />
-    </provider>
 
 </manifest>

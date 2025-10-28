@@ -4,7 +4,33 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".network.monitor.NetworkMonitorActivity"
-    >
+    tools:context=".network.monitor.NetworkMonitorActivity">
+
+    <!-- 网络状态：强网/弱网/无网 -->
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="状态：未知"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- 网络详情：传输类型、是否验证、下行带宽等 -->
+    <TextView
+        android:id="@+id/tvDetails"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:text="详情："
+        android:textSize="14sp"
+        android:padding="16dp"
+        android:gravity="top|start"
+        app:layout_constraintTop_toBottomOf="@id/tvStatus"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

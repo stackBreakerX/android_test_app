@@ -1,6 +1,7 @@
 package com.alex.studydemo.module_media
 
 import android.graphics.Bitmap
+import java.io.FileDescriptor
 
 object LibWebpNative {
     @Volatile
@@ -34,8 +35,20 @@ object LibWebpNative {
 
     external fun isLibwebpAvailable(): Boolean
 
+    // new method: decode WebP from file descriptor to Bitmap (ARGB_8888)
+    external fun decodeWebpToBitmapFd(fd: FileDescriptor): Bitmap?
+
     fun tryEncode(bitmap: Bitmap, quality: Float): ByteArray? {
         if (!isAvailable) return null
         return encodeBitmapToWebp(bitmap, quality)
+    }
+
+    fun tryDecodeFd(fd: FileDescriptor): Bitmap? {
+        if (!isAvailable) return null
+        return try {
+            decodeWebpToBitmapFd(fd)
+        } catch (e: Throwable) {
+            null
+        }
     }
 }

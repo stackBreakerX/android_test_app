@@ -11,6 +11,7 @@ import android.os.Message
 import android.os.SystemClock
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -38,6 +39,9 @@ import java.util.Date
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.alex.studydemo.databinding.ItemMainEntryBinding
 
 
 class MainActivity : AppCompatActivity() {
@@ -77,6 +81,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         ARouter.getInstance().inject(this)
+
+        val recycler = findViewById<RecyclerView>(R.id.recyclerMain)
+        recycler.layoutManager = GridLayoutManager(this, 2)
+        val entries = buildEntries()
+        recycler.adapter = MainEntryAdapter(entries)
 
 //        sPool.scheduleWithFixedDelay({
 //            try {
@@ -217,6 +226,11 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    fun fastThumbnailDemo(view: View) {
+        val intent = android.content.Intent(this, com.alex.studydemo.module_image.FastThumbnailActivity::class.java)
+        startActivity(intent)
+    }
+
     fun testTryCatch(view: View) {
         lifecycleScope.launch(Dispatchers.IO + CoroutineExceptionHandler { coroutineContext, throwable ->
             println("error = $throwable")
@@ -289,5 +303,46 @@ class MainActivity : AppCompatActivity() {
 //                e.printStackTrace()
 //            }
         }
+    }
+
+    private data class MainEntry(
+        val title: String,
+        val onClick: (View) -> Unit
+    )
+
+    private fun buildEntries(): List<MainEntry> = listOf(
+        MainEntry("Arouter Entry", ::arouterDemo),
+        MainEntry("Hilt Entry", ::hiltDemo),
+        MainEntry("Coroutine Entry", ::coroutineDemo),
+        MainEntry("RecyclerView Entry", ::recyclerViewDemo),
+        MainEntry("Room Entry", ::RoomDemo),
+        MainEntry("View Entry", ::ViewDemo),
+        MainEntry("WebP 转换", ::imageWebpDemo),
+        MainEntry("libwebp 转换", ::imageWebpLibDemo),
+        MainEntry("PNG 转换（非JPG/PNG）", ::imagePngConvertDemo),
+        MainEntry("JPG 转换（非JPG/PNG）", ::imageJpgConvertDemo),
+        MainEntry("图片选择器", ::imagePickerDemo),
+        MainEntry("快速缩略图", ::fastThumbnailDemo),
+        MainEntry("Test try catch", ::testTryCatch),
+    )
+
+    private inner class MainEntryAdapter(
+        private val items: List<MainEntry>
+    ) : RecyclerView.Adapter<MainEntryAdapter.VH>() {
+
+        inner class VH(val binding: ItemMainEntryBinding) : RecyclerView.ViewHolder(binding.root)
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            val binding = ItemMainEntryBinding.inflate(layoutInflater, parent, false)
+            return VH(binding)
+        }
+
+        override fun onBindViewHolder(holder: VH, position: Int) {
+            val item = items[position]
+            holder.binding.btnEntry.text = item.title
+            holder.binding.btnEntry.setOnClickListener { v -> item.onClick(v) }
+        }
+
+        override fun getItemCount(): Int = items.size
     }
 }

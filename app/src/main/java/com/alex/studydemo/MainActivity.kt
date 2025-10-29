@@ -85,6 +85,12 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
     override fun onViewCreated(savedInstanceState: Bundle?) {
         ARouter.getInstance().inject(this)
 
+        // 仅在 MainActivity 隐藏返回按钮（覆盖 BaseActivity 的默认行为）
+        supportActionBar?.setDisplayHomeAsUpEnabled(false)
+        supportActionBar?.setDisplayShowHomeEnabled(false)
+        supportActionBar?.setHomeButtonEnabled(false)
+        toolbar?.navigationIcon = null
+
         val recycler = binding.recyclerMain
         recycler.layoutManager = GridLayoutManager(this, 2)
         val entries = buildEntries()

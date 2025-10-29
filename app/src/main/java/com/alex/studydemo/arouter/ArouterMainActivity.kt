@@ -4,11 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import androidx.appcompat.app.AppCompatActivity
-import com.alex.studydemo.R
+import com.alex.studydemo.base.BaseActivity
+import com.alex.studydemo.databinding.ActivityArouterMainBinding
 import com.alibaba.android.arouter.launcher.ARouter
 
-class ArouterMainActivity : AppCompatActivity() {
+class ArouterMainActivity : BaseActivity<ActivityArouterMainBinding>() {
 
     companion object {
             fun newInstance(context: Context) {
@@ -25,9 +25,10 @@ class ArouterMainActivity : AppCompatActivity() {
             }
         }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_arouter_main)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityArouterMainBinding =
+        ActivityArouterMainBinding.inflate(inflater)
+
+    override fun onViewCreated(savedInstanceState: Bundle?) {
 //        ARouter.getInstance().inject(this)
 
     }

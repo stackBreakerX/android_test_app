@@ -22,7 +22,7 @@
         android:orientation="horizontal"
         android:layout_marginBottom="24dp">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_select_from_gallery"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -30,7 +30,7 @@
             android:text="从图库选择"
             android:layout_marginEnd="8dp" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_take_photo"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -40,7 +40,7 @@
 
     </LinearLayout>
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_clear_image"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

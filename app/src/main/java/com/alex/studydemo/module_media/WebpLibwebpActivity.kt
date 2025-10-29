@@ -11,7 +11,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import com.alex.studydemo.base.BaseActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
@@ -21,18 +21,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-class WebpLibwebpActivity : AppCompatActivity() {
-
-    private lateinit var binding: ActivityWebpLibwebpBinding
+class WebpLibwebpActivity : BaseActivity<ActivityWebpLibwebpBinding>() {
     private lateinit var pickImagesLauncher: ActivityResultLauncher<Array<String>>
 
     private val MAX_DECODE_DIM = 2000
     private val WEBP_QUALITY = 75f
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityWebpLibwebpBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityWebpLibwebpBinding =
+        ActivityWebpLibwebpBinding.inflate(inflater)
+
+    override fun onViewCreated(savedInstanceState: Bundle?) {
 
         binding.tvHeader.text = if (LibWebpNative.isAvailable) {
             "libwebp JNI 已加载：使用原生编码"

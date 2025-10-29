@@ -13,21 +13,16 @@ import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+import com.alex.studydemo.base.BaseActivity
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import com.alex.studydemo.databinding.ActivityJpgConvertBinding
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.util.Locale
 import java.io.BufferedOutputStream
 import java.io.IOException
 import java.io.OutputStream
 
 
-class JpgConvertActivity : AppCompatActivity() {
-
-    private lateinit var binding: ActivityJpgConvertBinding
+class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
     private val JPEG_QUALITY = 85
     // Add UI-only counters for native decode usage
     private var nativeDecodeSuccessCount = 0
@@ -43,11 +38,10 @@ class JpgConvertActivity : AppCompatActivity() {
             }
         }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityJpgConvertBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityJpgConvertBinding =
+        ActivityJpgConvertBinding.inflate(inflater)
 
+    override fun onViewCreated(savedInstanceState: Bundle?) {
         binding.btnScanAndConvertNative.setOnClickListener {
             ensurePermissionAndStartNative()
         }
@@ -74,31 +68,25 @@ class JpgConvertActivity : AppCompatActivity() {
     }
 
     private fun startScanAndConvertNative() {
-        lifecycleScope.launch(Dispatchers.IO) {
+        Thread {
             try {
-                withContext(Dispatchers.Main) {
-                    log("[C 库] 可用性：LibDngNative.isAvailable=${LibDngNative.isAvailable} | 设备 ABI=${Build.SUPPORTED_ABIS.joinToString()}")
-                }
+                log("[C 库] 可用性：LibDngNative.isAvailable=${LibDngNative.isAvailable} | 设备 ABI=${Build.SUPPORTED_ABIS.joinToString()}")
                 val nonJpgPngUris = queryNonJpgPngImages()
-                withContext(Dispatchers.Main) {
-                    binding.tvResult.text = ""
-                }
-                nonJpgPngUris.forEachIndexed { index, uri ->
+                binding.tvResult.post { binding.tvResult.text = "" }
+                nonJpgPngUris.forEachIndexed { _, uri ->
                     val ok = convertSingleToJpgNative(uri)
-                    withContext(Dispatchers.Main) {
-                        log("----------------------------------------")
-                    }
+                    log("----------------------------------------")
                 }
-                withContext(Dispatchers.Main) {
+                runOnUiThread {
                     Toast.makeText(this@JpgConvertActivity, "JPG 转换完成", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
+                runOnUiThread {
                     log("[错误] ${e.message}")
                     Toast.makeText(this@JpgConvertActivity, "转换失败: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
-        }
+        }.start()
     }
 
     private fun queryNonJpgPngImages(): List<Uri> {
@@ -150,8 +138,8 @@ class JpgConvertActivity : AppCompatActivity() {
         return try {
             lastNativeSuccess = false
             val info = getMediaInfo(uri)
-            val mime = info.mime?.lowercase()
-            val lowerNameCandidate = (info.displayName ?: uri.lastPathSegment ?: uri.toString()).lowercase()
+            val mime = info.mime?.lowercase(Locale.ROOT)
+            val lowerNameCandidate = (info.displayName ?: uri.lastPathSegment ?: uri.toString()).lowercase(Locale.ROOT)
             val isJpeg = mime?.contains("jpeg") == true || mime?.contains("jpg") == true
             val isPng = mime?.contains("png") == true
             val isWebp = mime?.contains("webp") == true

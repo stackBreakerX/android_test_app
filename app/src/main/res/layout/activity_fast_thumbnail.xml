@@ -22,7 +22,7 @@
         android:orientation="horizontal"
         android:layout_marginBottom="16dp">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_load_thumbnails"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -30,7 +30,7 @@
             android:text="加载缩略图"
             android:layout_marginEnd="8dp" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_clear_cache"
             android:layout_width="0dp"
             android:layout_height="wrap_content"

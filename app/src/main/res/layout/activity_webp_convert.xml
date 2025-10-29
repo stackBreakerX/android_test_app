@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     tools:context=".module_media.WebpConvertActivity">
 
-    <androidx.appcompat.widget.AppCompatButton
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnPickAndConvert"
         android:layout_width="wrap_content"
         android:layout_height="50dp"

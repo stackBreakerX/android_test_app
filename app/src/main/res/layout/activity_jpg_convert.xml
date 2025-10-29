@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     tools:context=".module_media.JpgConvertActivity">
 
-    <androidx.appcompat.widget.AppCompatButton
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnScanAndConvert"
         android:layout_width="wrap_content"
         android:layout_height="50dp"
@@ -19,7 +19,7 @@
         android:layout_marginTop="100dp"
         />
 
-    <androidx.appcompat.widget.AppCompatButton
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnScanAndConvertNative"
         android:layout_width="wrap_content"
         android:layout_height="50dp"

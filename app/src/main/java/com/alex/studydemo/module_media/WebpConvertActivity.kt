@@ -11,7 +11,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import com.alex.studydemo.base.BaseActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,9 +27,7 @@ import kotlin.math.min
 import java.io.BufferedOutputStream
 import java.io.IOException
 
-class WebpConvertActivity : AppCompatActivity() {
-
-    private lateinit var binding: ActivityWebpConvertBinding
+class WebpConvertActivity : BaseActivity<ActivityWebpConvertBinding>() {
 
     private lateinit var pickImagesLauncher: ActivityResultLauncher<Array<String>>
 
@@ -37,10 +35,10 @@ class WebpConvertActivity : AppCompatActivity() {
     private val WEBP_QUALITY = 75
     private val PARALLELISM = 1
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityWebpConvertBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityWebpConvertBinding =
+        ActivityWebpConvertBinding.inflate(inflater)
+
+    override fun onViewCreated(savedInstanceState: Bundle?) {
 
         pickImagesLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             if (uris.isNullOrEmpty()) {

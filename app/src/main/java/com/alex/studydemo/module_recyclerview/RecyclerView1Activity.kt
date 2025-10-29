@@ -6,7 +6,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AppCompatActivity
+import com.alex.studydemo.base.BaseActivity
 import androidx.recyclerview.widget.RecyclerView
 import com.alex.studydemo.R
 import com.alex.studydemo.databinding.ActivityRecyclerViewBinding
@@ -18,13 +18,13 @@ import com.chad.library.adapter.base.binder.QuickViewBindingItemBinder
 import com.chad.library.adapter.base.viewholder.BaseViewHolder
 
 @Route(path = PATH)
-class RecyclerViewActivity1 : AppCompatActivity() {
+class RecyclerViewActivity1 : BaseActivity<ActivityRecyclerViewBinding>() {
 
 //    private val adapter = BaseBinderAdapter()
 
     private lateinit var mAdapter: DemoAdapter
 
-    private lateinit var viewBinding: ActivityRecyclerViewBinding
+    private val viewBinding: ActivityRecyclerViewBinding get() = binding
 
     val data = mutableListOf<TestData>(
         TestData("1", "alex1"),
@@ -45,11 +45,10 @@ class RecyclerViewActivity1 : AppCompatActivity() {
         const val PATH = "/view/recyclerView1"
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityRecyclerViewBinding =
+        ActivityRecyclerViewBinding.inflate(inflater)
 
-        viewBinding = ActivityRecyclerViewBinding.inflate(layoutInflater)
-        setContentView(viewBinding.root)
+    override fun onViewCreated(savedInstanceState: Bundle?) {
         mAdapter = DemoAdapter(R.layout.item_text_view)
 //        adapter.addItemBinder(ImageItemBinder())
 

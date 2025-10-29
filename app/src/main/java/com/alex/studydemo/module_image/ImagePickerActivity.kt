@@ -13,7 +13,7 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+import com.alex.studydemo.base.BaseActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -28,9 +28,9 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 @Route(path = ImagePickerActivity.PATH)
-class ImagePickerActivity : AppCompatActivity() {
+class ImagePickerActivity : BaseActivity<ActivityImagePickerBinding>() {
 
-    private lateinit var mViewBinding: ActivityImagePickerBinding
+    private val mViewBinding: ActivityImagePickerBinding get() = binding
     private var currentPhotoPath: String? = null
 
     companion object {
@@ -62,11 +62,10 @@ class ImagePickerActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        mViewBinding = ActivityImagePickerBinding.inflate(layoutInflater)
-        setContentView(mViewBinding.root)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityImagePickerBinding =
+        ActivityImagePickerBinding.inflate(inflater)
 
+    override fun onViewCreated(savedInstanceState: Bundle?) {
         initViews()
     }
 

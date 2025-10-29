@@ -1,12 +1,11 @@
 package com.alex.studydemo.module_recyclerview
 
 import android.graphics.Color
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import com.alex.studydemo.base.BaseActivity
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.alex.studydemo.databinding.ActivityRecyclerViewBinding
@@ -18,7 +17,7 @@ import com.chad.library.adapter.base.BaseBinderAdapter
 import com.chad.library.adapter.base.binder.QuickViewBindingItemBinder
 
 @Route(path = PATH)
-class RecyclerViewActivity : AppCompatActivity() {
+class RecyclerViewActivity : BaseActivity<ActivityRecyclerViewBinding>() {
 
     private val adapter = BaseBinderAdapter()
 
@@ -52,23 +51,19 @@ class RecyclerViewActivity : AppCompatActivity() {
         TestData("33", "alex17"),
     )
 
-    private lateinit var viewBinding: ActivityRecyclerViewBinding
-
     companion object {
         private const val TAG = "RecyclerViewActivity"
         const val PATH = "/view/recyclerView"
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityRecyclerViewBinding =
+        ActivityRecyclerViewBinding.inflate(inflater)
 
-        viewBinding = ActivityRecyclerViewBinding.inflate(layoutInflater)
-        setContentView(viewBinding.root)
-
+    override fun onViewCreated(savedInstanceState: android.os.Bundle?) {
         adapter.addItemBinder(ImageItemBinder())
 
-        viewBinding.rvList.adapter = adapter
-        viewBinding.rvList.addItemDecoration(VerticalSectionDecoration.create(this)
+        binding.rvList.adapter = adapter
+        binding.rvList.addItemDecoration(VerticalSectionDecoration.create(this)
             .sectionSize(50)
             .sectionTextSize(20f)
             .sectionTextLeftOffset(20f)
@@ -95,7 +90,7 @@ class RecyclerViewActivity : AppCompatActivity() {
 
         val callback = SimpleItemTouchHelperCallback()
         val touchHelper = ItemTouchHelper(callback)
-        touchHelper.attachToRecyclerView(viewBinding.rvList)
+        touchHelper.attachToRecyclerView(binding.rvList)
         getData()
 
     }

@@ -1,6 +1,5 @@
 package com.alex.studydemo.module_recyclerview
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.ContextMenu
 import android.view.LayoutInflater
@@ -8,22 +7,23 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import com.alex.studydemo.base.BaseActivity
 import com.alex.studydemo.R
 import com.alex.studydemo.databinding.ActivityRecyclerViewAnimationBinding
 import com.alex.studydemo.databinding.ItemRvAnimationBinding
 import com.chad.library.adapter.base.BaseBinderAdapter
 import com.chad.library.adapter.base.binder.QuickViewBindingItemBinder
 
-class RecyclerViewAnimationActivity : AppCompatActivity() {
+class RecyclerViewAnimationActivity : BaseActivity<ActivityRecyclerViewAnimationBinding>() {
 
-    private lateinit var viewBinding: ActivityRecyclerViewAnimationBinding
+    private val viewBinding: ActivityRecyclerViewAnimationBinding get() = binding
 
     private val adapter = BaseBinderAdapter()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        viewBinding = ActivityRecyclerViewAnimationBinding.inflate(layoutInflater)
-        setContentView(viewBinding.root)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityRecyclerViewAnimationBinding =
+        ActivityRecyclerViewAnimationBinding.inflate(inflater)
+
+    override fun onViewCreated(savedInstanceState: Bundle?) {
         adapter.addItemBinder(AnimationItemBinder())
         viewBinding.rvAnimation.adapter = adapter
     }

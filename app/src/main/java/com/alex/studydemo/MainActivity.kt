@@ -42,9 +42,11 @@ import java.util.concurrent.TimeUnit
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.alex.studydemo.databinding.ItemMainEntryBinding
+import com.alex.studydemo.databinding.ActivityMainBinding
+import com.alex.studydemo.base.BaseActivity
 
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity<ActivityMainBinding>() {
 
     private val sPool: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
 
@@ -77,12 +79,13 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityMainBinding =
+        ActivityMainBinding.inflate(inflater)
+
+    override fun onViewCreated(savedInstanceState: Bundle?) {
         ARouter.getInstance().inject(this)
 
-        val recycler = findViewById<RecyclerView>(R.id.recyclerMain)
+        val recycler = binding.recyclerMain
         recycler.layoutManager = GridLayoutManager(this, 2)
         val entries = buildEntries()
         recycler.adapter = MainEntryAdapter(entries)

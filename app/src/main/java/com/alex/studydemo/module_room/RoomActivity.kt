@@ -3,7 +3,7 @@ package com.alex.studydemo.module_room
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import com.alex.studydemo.base.BaseActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -14,9 +14,9 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 @Route(path = RoomActivity.PATH)
-class RoomActivity : AppCompatActivity() {
+class RoomActivity : BaseActivity<ActivityRoomBinding>() {
 
-    private lateinit var mViewBinding: ActivityRoomBinding
+    private val mViewBinding: ActivityRoomBinding get() = binding
 
     private var userDataBase: AppDataBase? = null
 
@@ -30,10 +30,10 @@ class RoomActivity : AppCompatActivity() {
         private const val TAG = "RoomActivity"
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        mViewBinding = ActivityRoomBinding.inflate(layoutInflater)
-        setContentView(mViewBinding.root)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityRoomBinding =
+        ActivityRoomBinding.inflate(inflater)
+
+    override fun onViewCreated(savedInstanceState: Bundle?) {
 
 
         userDataBase = DataBaseManager.init(this, AppDataBase::class.java)

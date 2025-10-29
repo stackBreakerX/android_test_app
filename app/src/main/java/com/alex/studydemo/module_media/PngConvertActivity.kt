@@ -15,7 +15,7 @@ import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+import com.alex.studydemo.base.BaseActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.alex.studydemo.databinding.ActivityPngConvertBinding
@@ -29,9 +29,7 @@ import java.io.OutputStream
 // Add native PNG
 import com.alex.studydemo.module_media.LibPngNative
 
-class PngConvertActivity : AppCompatActivity() {
-
-    private lateinit var binding: ActivityPngConvertBinding
+class PngConvertActivity : BaseActivity<ActivityPngConvertBinding>() {
 
     // Native PNG compression level: 0-9 (speed vs size)
     private val PNG_COMPRESSION_LEVEL = 3
@@ -45,11 +43,10 @@ class PngConvertActivity : AppCompatActivity() {
             }
         }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityPngConvertBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityPngConvertBinding =
+        ActivityPngConvertBinding.inflate(inflater)
 
+    override fun onViewCreated(savedInstanceState: Bundle?) {
         binding.btnScanAndConvert.setOnClickListener {
             ensurePermissionAndStart()
         }

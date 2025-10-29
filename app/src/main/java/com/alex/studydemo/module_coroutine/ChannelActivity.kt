@@ -2,7 +2,7 @@ package com.alex.studydemo.module_coroutine
 
 import android.content.Context
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
+import com.alex.studydemo.base.BaseActivity
 import android.os.Bundle
 import android.util.Log
 import androidx.lifecycle.lifecycleScope
@@ -37,9 +37,9 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 
-class ChannelActivity : AppCompatActivity() {
+class ChannelActivity : BaseActivity<ActivityChannelBinding>() {
 
-    private lateinit var viewBinding: ActivityChannelBinding
+    private val viewBinding: ActivityChannelBinding get() = binding
 
     private val queue: Channel<suspend (String) -> Unit> = Channel(Channel.UNLIMITED)
 
@@ -65,10 +65,10 @@ class ChannelActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        viewBinding = ActivityChannelBinding.inflate(layoutInflater)
-        setContentView(viewBinding.root)
+    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityChannelBinding =
+        ActivityChannelBinding.inflate(inflater)
+
+    override fun onViewCreated(savedInstanceState: Bundle?) {
 
         scope.launch(Dispatchers.IO) {
             try {

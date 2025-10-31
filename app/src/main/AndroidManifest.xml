@@ -70,6 +70,10 @@
         <activity
             android:name=".module_media.JpgConvertActivity"
             android:exported="false" />
+        <!-- 注册 PNG 透明检测页面 -->
+        <activity
+            android:name=".module_media.PngAlphaCheckActivity"
+            android:exported="false" />
         <!-- 注册图片选择页面 -->
         <activity
             android:name=".module_image.ImagePickerActivity"

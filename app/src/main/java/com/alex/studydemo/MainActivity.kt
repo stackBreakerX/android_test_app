@@ -22,7 +22,6 @@ import com.alex.studydemo.module_room.RoomActivity
 import com.alex.studydemo.module_view.CustomerViewActivity
 import com.alibaba.android.arouter.launcher.ARouter
 import com.blankj.utilcode.util.TimeUtils
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -230,6 +229,11 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         startActivity(intent)
     }
 
+    fun pngAlphaCheckDemo(view: View) {
+        val intent = android.content.Intent(this, com.alex.studydemo.module_media.PngAlphaCheckActivity::class.java)
+        startActivity(intent)
+    }
+
     fun imagePickerDemo(view: View) {
         val intent = android.content.Intent(this, com.alex.studydemo.module_image.ImagePickerActivity::class.java)
         startActivity(intent)
@@ -241,46 +245,47 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
     }
 
     fun testTryCatch(view: View) {
-        lifecycleScope.launch(Dispatchers.IO + CoroutineExceptionHandler { coroutineContext, throwable ->
-            println("error = $throwable")
-        }) {
-            val results = mutableListOf<Deferred<Any?>>()
-            val result1 = async {
-                testSubTryCatch1()
-                Any()
-            }
-            results.add(result1)
-
-            val result2 = async {
-                testSubTryCatch1()
-                Any()
-            }
-            results.add(result2)
-
-            val result3 = async {
-                testSubTryCatch1()
-                withContext(Dispatchers.Main) {
-                    val i = 100 / 0
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val results = mutableListOf<Deferred<Any?>>()
+                val result1 = async {
+                    testSubTryCatch1()
+                    Any()
                 }
-                Any()
-            }
-            results.add(result3)
+                results.add(result1)
 
-            val result4 = async {
-                testSubTryCatch1()
-                Any()
-            }
-            results.add(result4)
-
-            val allResult = results.awaitAll()
-            for (any in allResult) {
-                if (any == null) {
-                    println("error = null")
+                val result2 = async {
+                    testSubTryCatch1()
+                    Any()
                 }
+                results.add(result2)
+
+                val result3 = async {
+                    testSubTryCatch1()
+                    withContext(Dispatchers.Main) {
+                        val i = 100 / 0
+                    }
+                    Any()
+                }
+                results.add(result3)
+
+                val result4 = async {
+                    testSubTryCatch1()
+                    Any()
+                }
+                results.add(result4)
+
+                val allResult = results.awaitAll()
+                for (any in allResult) {
+                    if (any == null) {
+                        println("error = null")
+                    }
+                }
+
+                println("allResult is success")
+            } catch (t: Throwable) {
+                println("error = $t")
             }
-
-            println("allResult is success")
-
         }
     }
 
@@ -302,15 +307,12 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
     }
 
     fun testSubTryCatch() {
-        GlobalScope.launch(CoroutineExceptionHandler { coroutineContext, throwable ->
-            println("error = $throwable")
-        }) {
-            val i = 100 / 0
-//            try {
-//                val i = 100 / 0
-//            } catch (e: Exception) {
-//                e.printStackTrace()
-//            }
+        GlobalScope.launch(Dispatchers.Default) {
+            try {
+                val i = 100 / 0
+            } catch (e: Throwable) {
+                println("error = $e")
+            }
         }
     }
 
@@ -330,6 +332,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         MainEntry("libwebp 转换", ::imageWebpLibDemo),
         MainEntry("PNG 转换（非JPG/PNG）", ::imagePngConvertDemo),
         MainEntry("JPG 转换（非JPG/PNG）", ::imageJpgConvertDemo),
+        MainEntry("PNG 透明通道检测", ::pngAlphaCheckDemo),
         MainEntry("图片选择器", ::imagePickerDemo),
         MainEntry("快速缩略图", ::fastThumbnailDemo),
         MainEntry("Test try catch", ::testTryCatch),

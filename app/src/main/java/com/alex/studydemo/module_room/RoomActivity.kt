@@ -18,9 +18,7 @@ class RoomActivity : BaseActivity<ActivityRoomBinding>() {
 
     private val mViewBinding: ActivityRoomBinding get() = binding
 
-    private var userDataBase: AppDataBase? = null
-
-    private var imDataBase: IMAppDataBase? = null
+    private var dataBase: UnifiedAppDataBase? = null
 
 //    var ids = mutableListOf<String>()
 
@@ -36,16 +34,13 @@ class RoomActivity : BaseActivity<ActivityRoomBinding>() {
     override fun onViewCreated(savedInstanceState: Bundle?) {
 
 
-        userDataBase = DataBaseManager.init(this, AppDataBase::class.java)
-//        userDataBase?.openHelper?.writableDatabase?.execSQL("")
-        val writableDatabase = userDataBase?.openHelper?.writableDatabase
+        dataBase = DataBaseManager.init(this, UnifiedAppDataBase::class.java)
+//        dataBase?.openHelper?.writableDatabase?.execSQL("")
+        val writableDatabase = dataBase?.openHelper?.writableDatabase
 
 
 //        writableDatabase?.execSQL("CREATE TABLE IF NOT EXISTS `test_user` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT)")
 //        writableDatabase?.execSQL("CREATE TABLE IF NOT EXISTS `test_message` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `content` TEXT)")
-
-        imDataBase = DataBaseManager.init(this, IMAppDataBase::class.java)
-
 
         mViewBinding.btnAddMessage.setOnClickListener {
             sqlInsertMessage(writableDatabase)
@@ -55,14 +50,14 @@ class RoomActivity : BaseActivity<ActivityRoomBinding>() {
             val content = mViewBinding.etContent.text.toString()
             val message = MessageEntity()
             message.content = content
-            imDataBase
-                ?.messageDto()
+            dataBase
+                ?.messageDao()
                 ?.insertMessage(message)
         }
 
         mViewBinding.btnGetMessageApi.setOnClickListener {
-            val messages = imDataBase
-                ?.messageDto()
+            val messages = dataBase
+                ?.messageDao()
                 ?.getMessages()
             Toast.makeText(this, messages.toString(), Toast.LENGTH_LONG).show()
         }
@@ -106,7 +101,7 @@ class RoomActivity : BaseActivity<ActivityRoomBinding>() {
 
 
             try {
-                userDataBase?.userDao()?.insertList(list)
+                dataBase?.userDao()?.insertList(list)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -116,14 +111,14 @@ class RoomActivity : BaseActivity<ActivityRoomBinding>() {
 
         mViewBinding.btnUpdateUsers.setOnClickListener {
             val userIds = mutableListOf("10", "11", "12", "13")
-            val rows = userDataBase?.userDao()?.updateUser("test", userIds)
+            val rows = dataBase?.userDao()?.updateUser("test", userIds)
             Toast.makeText(this, "rows = $rows", Toast.LENGTH_SHORT).show()
         }
 
         mViewBinding.btnUpdateUsersNoRows.setOnClickListener {
 //            val userIds = mutableListOf("10", "11", "12", "13")
             val userIds = mutableListOf("99", "55")
-            val rows = userDataBase?.userDao()?.updateUser("android 111", userIds)
+            val rows = dataBase?.userDao()?.updateUser("android 111", userIds)
             Toast.makeText(this, "rows = $rows", Toast.LENGTH_SHORT).show()
         }
 
@@ -158,16 +153,16 @@ class RoomActivity : BaseActivity<ActivityRoomBinding>() {
                 uids = list.map {
                     it.userId
                 }.toMutableList()
-                rowIds = userDataBase?.userDao()?.insertList(list) ?: mutableListOf()
+                rowIds = dataBase?.userDao()?.insertList(list) ?: mutableListOf()
                 Log.d("1111111", "insert rowIds $rowIds")
                 val insertedRowIds = rowIds.filter { rowId ->
                     rowId != -1L
                 }.toMutableList()
                 Log.d("1111111", "insert insertedRowIds $insertedRowIds")
-                val insertUids = userDataBase?.userDao()?.query(insertedRowIds) ?: mutableSetOf()
+                val insertUids = dataBase?.userDao()?.query(insertedRowIds) ?: mutableSetOf()
                 val notInsertUids = uids.subtract(insertUids.toSet())
                 Log.d("22222", "not insert uids  $notInsertUids")
-                userDataBase?.userDao()?.updateUserName("哈哈哈", notInsertUids)
+                dataBase?.userDao()?.updateUserName("哈哈哈", notInsertUids)
             } catch (e: Exception) {
 
                 e.printStackTrace()
@@ -182,14 +177,14 @@ class RoomActivity : BaseActivity<ActivityRoomBinding>() {
             userEntity.name = Random.nextInt(1, 10).toString()
             userEntity.userId = "99"
 
-            userDataBase?.userDao()?.insertMessageUser(userEntity)
+            dataBase?.userDao()?.insertMessageUser(userEntity)
         }
 
         mViewBinding.btnTransactionTest.setOnClickListener {
 
                 lifecycleScope.launch(Dispatchers.IO) {
                     try {
-                        userDataBase?.withTransaction {
+                        dataBase?.withTransaction {
 
                             //failed
 //                            val userIds = mutableListOf("101")
@@ -206,10 +201,10 @@ class RoomActivity : BaseActivity<ActivityRoomBinding>() {
                             var userEntity = UserEntity()
                             userEntity.name = Random.nextInt(1, 10).toString()
                             userEntity.userId = "102"
-                            userDataBase?.userDao()?.insertUser(userEntity)
+                            dataBase?.userDao()?.insertUser(userEntity)
 
                             val userIds = mutableListOf("999")
-                            val rows = userDataBase?.userDao()?.updateUser("test", userIds)
+                            val rows = dataBase?.userDao()?.updateUser("test", userIds)
                             Log.d(TAG, "btnTransactionTest() updateUser rows $rows")
 
                         }

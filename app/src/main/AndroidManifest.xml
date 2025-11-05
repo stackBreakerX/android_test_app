@@ -62,6 +62,10 @@
         <activity
             android:name=".module_media.WebpLibwebpActivity"
             android:exported="false" />
+        <!-- 注册多媒体合并入口二级页面 -->
+        <activity
+            android:name=".module_media.MediaEntryActivity"
+            android:exported="false" />
         <!-- 注册 PNG 转换页面 -->
         <activity
             android:name=".module_media.PngConvertActivity"
@@ -81,6 +85,10 @@
         <!-- 注册快速缩略图页面 -->
         <activity
             android:name=".module_image.FastThumbnailActivity"
+            android:exported="false" />
+        <!-- 注册DNG处理页面 -->
+        <activity
+            android:name=".module_image.DngProcessActivity"
             android:exported="false" />
         <!-- FileProvider 配置 -->
         <provider

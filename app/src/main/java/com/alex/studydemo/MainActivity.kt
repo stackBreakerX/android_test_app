@@ -40,6 +40,7 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.app.AlertDialog
 import com.alex.studydemo.databinding.ItemMainEntryBinding
 import com.alex.studydemo.databinding.ActivityMainBinding
 import com.alex.studydemo.base.BaseActivity
@@ -244,6 +245,16 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         startActivity(intent)
     }
 
+    fun dngProcessDemo(view: View) {
+        val intent = android.content.Intent(this, com.alex.studydemo.module_image.DngProcessActivity::class.java)
+        startActivity(intent)
+    }
+
+    // 合并的多媒体入库入口：跳转到二级页面
+    fun mediaInsertEntry(view: View) {
+        startActivity(Intent(this, com.alex.studydemo.module_media.MediaEntryActivity::class.java))
+    }
+
     fun testTryCatch(view: View) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -328,13 +339,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         MainEntry("RecyclerView Entry", ::recyclerViewDemo),
         MainEntry("Room Entry", ::RoomDemo),
         MainEntry("View Entry", ::ViewDemo),
-        MainEntry("WebP 转换", ::imageWebpDemo),
-        MainEntry("libwebp 转换", ::imageWebpLibDemo),
-        MainEntry("PNG 转换（非JPG/PNG）", ::imagePngConvertDemo),
-        MainEntry("JPG 转换（非JPG/PNG）", ::imageJpgConvertDemo),
-        MainEntry("PNG 透明通道检测", ::pngAlphaCheckDemo),
-        MainEntry("图片选择器", ::imagePickerDemo),
-        MainEntry("快速缩略图", ::fastThumbnailDemo),
+        MainEntry("多媒体入库（合并入口）", ::mediaInsertEntry),
         MainEntry("Test try catch", ::testTryCatch),
     )
 

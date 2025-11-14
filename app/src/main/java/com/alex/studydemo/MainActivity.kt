@@ -44,6 +44,7 @@ import androidx.appcompat.app.AlertDialog
 import com.alex.studydemo.databinding.ItemMainEntryBinding
 import com.alex.studydemo.databinding.ActivityMainBinding
 import com.alex.studydemo.base.BaseActivity
+import com.alex.studydemo.network.request.NetworkEntryActivity
 
 
 class MainActivity : BaseActivity<ActivityMainBinding>() {
@@ -255,6 +256,10 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         startActivity(Intent(this, com.alex.studydemo.module_media.MediaEntryActivity::class.java))
     }
 
+    fun networkEntryDemo(view: View) {
+        NetworkEntryActivity.newInstance(this)
+    }
+
     fun testTryCatch(view: View) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -340,6 +345,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         MainEntry("Room Entry", ::RoomDemo),
         MainEntry("View Entry", ::ViewDemo),
         MainEntry("多媒体入库（合并入口）", ::mediaInsertEntry),
+        MainEntry("Network Entry", ::networkEntryDemo),
         MainEntry("Test try catch", ::testTryCatch),
     )
 

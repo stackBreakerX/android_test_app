@@ -4,6 +4,7 @@
 
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- 添加读取图片权限以支持扫描图库 -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
@@ -89,6 +90,12 @@
         <!-- 注册DNG处理页面 -->
         <activity
             android:name=".module_image.DngProcessActivity"
+            android:exported="false" />
+        <activity
+            android:name=".network.request.NetworkEntryActivity"
+            android:exported="false" />
+        <activity
+            android:name=".network.request.NetworkRequestActivity"
             android:exported="false" />
         <!-- FileProvider 配置 -->
         <provider

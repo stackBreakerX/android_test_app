@@ -97,6 +97,9 @@
         <activity
             android:name=".network.request.NetworkRequestActivity"
             android:exported="false" />
+        <activity
+            android:name=".module_thread.ThreadEntryActivity"
+            android:exported="false" />
         <!-- FileProvider 配置 -->
         <provider
             android:name="androidx.core.content.FileProvider"

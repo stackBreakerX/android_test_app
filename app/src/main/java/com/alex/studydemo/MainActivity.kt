@@ -45,6 +45,7 @@ import com.alex.studydemo.databinding.ItemMainEntryBinding
 import com.alex.studydemo.databinding.ActivityMainBinding
 import com.alex.studydemo.base.BaseActivity
 import com.alex.studydemo.network.request.NetworkEntryActivity
+import kotlin.jvm.java
 
 
 class MainActivity : BaseActivity<ActivityMainBinding>() {
@@ -260,10 +261,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         NetworkEntryActivity.newInstance(this)
     }
 
-    fun threadEntry(view: View) {
-        startActivity(Intent(this, com.alex.studydemo.module_thread.ThreadEntryActivity::class.java))
-    }
-
     fun testTryCatch(view: View) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -350,7 +347,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         MainEntry("View Entry", ::ViewDemo),
         MainEntry("多媒体入库（合并入口）", ::mediaInsertEntry),
         MainEntry("Network Entry", ::networkEntryDemo),
-        MainEntry("多线程模块汇总", ::threadEntry),
         MainEntry("Test try catch", ::testTryCatch),
     )
 

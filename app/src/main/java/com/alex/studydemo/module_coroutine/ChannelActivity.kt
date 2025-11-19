@@ -192,7 +192,7 @@ class ChannelActivity : BaseActivity<ActivityChannelBinding>() {
         lifecycleScope.launch(Dispatchers.Default) {
             repeat(100) { i ->
                 launch {
-                    delay(Random.nextLong(0, 50))
+//                    delay(Random.nextLong(0, 50))
                     semaphore.withPermit {
                         val running = inCritical.incrementAndGet()
                         Log.d(TAG, "semaphore enter index=$i inCritical=$running")

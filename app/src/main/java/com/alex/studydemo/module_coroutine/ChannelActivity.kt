@@ -2,7 +2,7 @@ package com.alex.studydemo.module_coroutine
 
 import android.content.Context
 import android.content.Intent
-import com.alex.studydemo.base.BaseActivity
+import android.icu.lang.UCharacter.GraphemeClusterBreak.T
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -10,52 +10,49 @@ import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.alex.studydemo.R
+import com.alex.studydemo.base.BaseActivity
 import com.alex.studydemo.databinding.ActivityChannelBinding
 import com.alex.studydemo.databinding.ItemMainEntryBinding
 import com.blankj.utilcode.util.ThreadUtils
-import com.blankj.utilcode.util.ToastUtils
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.newCoroutineContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
-import kotlin.random.Random
 
 class ChannelActivity : BaseActivity<ActivityChannelBinding>() {
 
     private val viewBinding: ActivityChannelBinding get() = binding
 
-    private val queue: Channel<suspend (String) -> Unit> = Channel(Channel.UNLIMITED)
+    private val queue: Channel<suspend (Int) -> Unit> = Channel(Channel.UNLIMITED)
 
     private val scope = CoroutineScope(CoroutineName("ChannelActivity"))
 
     private val TAG = "ChannelActivity"
 
-    val newSingleThreadExecutor = Executors.newFixedThreadPool(1)
+    val newSingleThreadExecutor = Executors.newFixedThreadPool(2)
     private val singleDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
 
     private val singleScope =
@@ -77,27 +74,36 @@ class ChannelActivity : BaseActivity<ActivityChannelBinding>() {
         ActivityChannelBinding.inflate(inflater)
 
     override fun onViewCreated(savedInstanceState: Bundle?) {
-        scope.launch(Dispatchers.IO) {
-            try {
-                val db = initDB()
-                withContext(dbCtx(db)) {
-                    while (isActive) {
-                        val data = queue.receive()
-                        try {
-                            data(db)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+//        scope.launch(Dispatchers.IO) {
+//            try {
+//                val db = initDB()
+//                withContext(dbCtx(db)) {
+//                    while (isActive) {
+//                        val data = queue.receive()
+//                        try {
+//                            data(db)
+//                        } catch (e: Exception) {
+//                            e.printStackTrace()
+//                        }
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            }
+//        }
+
+
 
         val recycler = binding.recyclerChannel
         recycler.layoutManager = LinearLayoutManager(this)
         recycler.adapter = EntryAdapter(buildEntries())
+
+        scope.launch(Dispatchers.IO) {
+            while (isActive) {
+                val result = queue.receive()
+                Log.d(TAG, "queue.receive(): result = $result")
+            }
+        }
     }
 
     private data class EntryItem(
@@ -116,23 +122,23 @@ class ChannelActivity : BaseActivity<ActivityChannelBinding>() {
         },
         EntryItem("Add withlock Task") { withLockTest() },
         EntryItem("Add RunBlock Task") { testRunBlock() },
-        EntryItem("Semaphore 并发测试") { testSemaphoreSerial() }
+        EntryItem("Semaphore 并发测试") {
+            GlobalScope.launch {
+                testSemaphoreSerial()
+            }
+        }
     )
 
     private fun addChannelTask() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            Log.d(TAG, "btnAddTask start channel task")
-            val ch = Channel<String>(1)
-            queue.send {
-                Thread.sleep(2000)
-                ch.send("$it 111111111111")
-            }
-            testSuspend()
-            val result = ch.receive()
-            Log.d(TAG, "btnAddTask called result 111111")
-            withContext(Dispatchers.Main) {
-                Log.d(TAG, "btnAddTask called result = $result")
-                ToastUtils.showLong(result)
+        repeat(100) { i ->
+            lifecycleScope.launch(Dispatchers.IO) {
+                Log.d(TAG, "btnAddTask start channel task i = $i")
+                val ch = Channel<Int>(1)
+                queue.send {
+                    ch.send(i)
+                }
+                val result = ch.receive()
+                Log.d(TAG, "btnAddTask called result i = $result")
             }
         }
     }
@@ -157,7 +163,7 @@ class ChannelActivity : BaseActivity<ActivityChannelBinding>() {
                         ThreadUtils.runOnUiThreadDelayed({
                             Log.d(TAG, "btnWithLockTest withContext 当次任务结束")
                             uploader.complete("1")
-                        },1000)
+                        }, 1000)
                     }
                 }
                 uploader.await()
@@ -185,23 +191,14 @@ class ChannelActivity : BaseActivity<ActivityChannelBinding>() {
         override fun getItemCount(): Int = items.size
     }
 
-    private fun testSemaphoreSerial() {
+    private suspend fun testSemaphoreSerial() {
         Log.d(TAG, "testSemaphoreSerial start")
         val semaphore = Semaphore(1)
-        val inCritical = java.util.concurrent.atomic.AtomicInteger(0)
-        lifecycleScope.launch(Dispatchers.Default) {
-            repeat(100) { i ->
-                launch {
-//                    delay(Random.nextLong(0, 50))
-                    semaphore.withPermit {
-                        val running = inCritical.incrementAndGet()
-                        Log.d(TAG, "semaphore enter index=$i inCritical=$running")
-                        Thread.sleep(10)
-                        val now = inCritical.get()
-                        Log.d(TAG, "semaphore exit index=$i inCritical=$now")
-                        inCritical.decrementAndGet()
-                    }
-                }
+        repeat(100) { i ->
+            Log.d(TAG, "semaphore enter index=$i")
+            semaphore.withPermit {
+                Thread.sleep(200)
+                Log.d(TAG, "semaphore exit index=$i")
             }
         }
     }
@@ -255,9 +252,10 @@ class ChannelActivity : BaseActivity<ActivityChannelBinding>() {
 
     private fun testSingleThread() {
         for (i in 0..100) {
-            singleScope.launch {
-                testChildThread(i)
-            }
+            Thread.sleep(1)
+                singleScope.launch {
+                    testChildThread(i)
+                }
         }
     }
 
@@ -307,8 +305,8 @@ class ChannelActivity : BaseActivity<ActivityChannelBinding>() {
     private suspend fun testChildThread(i: Int) {
         val testLJX = TestLJX()
         testLJX.name
-
-        withContext(coroutineContext) {
+        delay(100)
+        withContext(currentCoroutineContext()) {
             Log.d(TAG, "testChildThread() withContext(coroutineContext) called i = $i")
         }
 //        GlobalScope.launch(coroutineContext) {

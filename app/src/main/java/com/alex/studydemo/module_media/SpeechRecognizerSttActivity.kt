@@ -11,10 +11,12 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.alex.studydemo.base.BaseActivity
 import com.alex.studydemo.databinding.ActivitySpeechRecognizerSttBinding
+import com.alex.studydemo.BuildConfig
 
 class SpeechRecognizerSttActivity : BaseActivity<ActivitySpeechRecognizerSttBinding>() {
 
     private var recognizer: SpeechRecognizer? = null
+    private var fallback: NetworkSttClient? = null
 
     override fun inflateBinding(inflater: android.view.LayoutInflater): ActivitySpeechRecognizerSttBinding =
         ActivitySpeechRecognizerSttBinding.inflate(inflater)
@@ -30,6 +32,7 @@ class SpeechRecognizerSttActivity : BaseActivity<ActivitySpeechRecognizerSttBind
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     stop()
+                    stopFallback()
                     true
                 }
                 else -> false
@@ -58,7 +61,12 @@ class SpeechRecognizerSttActivity : BaseActivity<ActivitySpeechRecognizerSttBind
                 override fun onRmsChanged(rmsdB: Float) {}
                 override fun onBufferReceived(buffer: ByteArray?) {}
                 override fun onEndOfSpeech() { binding.txtStatus.text = "结束" }
-                override fun onError(error: Int) { binding.txtStatus.text = "错误：$error" }
+                override fun onError(error: Int) {
+                    binding.txtStatus.text = "错误：$error"
+                    if (error == SpeechRecognizer.ERROR_CLIENT) {
+                        startFallback()
+                    }
+                }
                 override fun onResults(results: Bundle?) {
                     val list = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     if (!list.isNullOrEmpty()) binding.txtTranscription.text = list.joinToString(" ")
@@ -86,10 +94,27 @@ class SpeechRecognizerSttActivity : BaseActivity<ActivitySpeechRecognizerSttBind
         recognizer?.stopListening()
     }
 
+    private fun startFallback() {
+        if (fallback != null) return
+        val url = BuildConfig.STT_WS_URL
+        fallback = NetworkSttClient(
+            url,
+            { t -> runOnUiThread { binding.txtTranscription.text = t } },
+            { t -> runOnUiThread { binding.txtTranscription.text = t } },
+            { s -> runOnUiThread { binding.txtStatus.text = s } }
+        )
+        fallback?.start()
+    }
+
+    private fun stopFallback() {
+        fallback?.stop()
+        fallback = null
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         recognizer?.destroy()
         recognizer = null
+        stopFallback()
     }
 }
-

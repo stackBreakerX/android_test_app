@@ -37,6 +37,7 @@ class MediaEntryActivity : BaseActivity<ActivityMediaEntryBinding>() {
         EntryItem("图片选择器") { startActivity(Intent(this, com.alex.studydemo.module_image.ImagePickerActivity::class.java)) },
         EntryItem("快速缩略图") { startActivity(Intent(this, com.alex.studydemo.module_image.FastThumbnailActivity::class.java)) },
         EntryItem("DNG处理转WebP") { startActivity(Intent(this, com.alex.studydemo.module_image.DngProcessActivity::class.java)) },
+        EntryItem("离线语音转文字") { startActivity(Intent(this, OfflineSpeechToTextActivity::class.java)) },
     )
 
     private inner class EntryAdapter(

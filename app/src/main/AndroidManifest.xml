@@ -93,7 +93,7 @@
             android:name=".module_image.DngProcessActivity"
             android:exported="false" />
         <activity
-            android:name=".module_media.OfflineSpeechToTextActivity"
+            android:name=".module_media.SpeechRecognizerSttActivity"
             android:exported="false" />
         <activity
             android:name=".network.request.NetworkEntryActivity"

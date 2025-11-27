@@ -38,6 +38,7 @@ class MediaEntryActivity : BaseActivity<ActivityMediaEntryBinding>() {
         EntryItem("快速缩略图") { startActivity(Intent(this, com.alex.studydemo.module_image.FastThumbnailActivity::class.java)) },
         EntryItem("DNG处理转WebP") { startActivity(Intent(this, com.alex.studydemo.module_image.DngProcessActivity::class.java)) },
         EntryItem("系统语音识别（长按）") { startActivity(Intent(this, SpeechRecognizerSttActivity::class.java)) },
+        EntryItem("Whisper（离线识别，需模型）") { startActivity(Intent(this, WhisperAndroidSttActivity::class.java)) },
     )
 
     private inner class EntryAdapter(

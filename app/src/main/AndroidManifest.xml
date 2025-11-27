@@ -96,6 +96,9 @@
             android:name=".module_media.SpeechRecognizerSttActivity"
             android:exported="false" />
         <activity
+            android:name=".module_media.WhisperAndroidSttActivity"
+            android:exported="false" />
+        <activity
             android:name=".network.request.NetworkEntryActivity"
             android:exported="false" />
         <activity

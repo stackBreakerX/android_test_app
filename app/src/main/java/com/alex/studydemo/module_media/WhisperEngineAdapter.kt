@@ -3,6 +3,10 @@ package com.alex.studydemo.module_media
 import android.content.Context
 import java.io.File
 import java.lang.reflect.Proxy
+import android.util.Log
+import com.alex.studydemo.BuildConfig
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class WhisperEngineAdapter(
     private val context: Context,
@@ -17,9 +21,12 @@ class WhisperEngineAdapter(
 
     override fun start() {
         try {
-            val whisperClassCandidates = listOf(
+            val whisperClassCandidates = listOfNotNull(
+                BuildConfig.WHISPER_CLASS.takeIf { it.isNotBlank() },
                 "com.app.whisper.native.Whisper",
-                "com.vilassn.whisper.Whisper"
+                "com.vilassn.whisper.Whisper",
+                "com.whisper.android.Whisper",
+                "com.whispercpp.android.Whisper"
             )
             val whisperClass = whisperClassCandidates.mapNotNull { runCatching { Class.forName(it) }.getOrNull() }.firstOrNull()
             if (whisperClass == null) {
@@ -40,9 +47,11 @@ class WhisperEngineAdapter(
             val loadMethod = whisperClass.getMethod("loadModel", String::class.java, String::class.java, Boolean::class.javaPrimitiveType)
             loadMethod.invoke(whisperObj, modelPath.absolutePath, vocabPath.absolutePath, true)
 
-            val listenerInterfaceCandidates = listOf(
+            val listenerInterfaceCandidates = listOfNotNull(
+                BuildConfig.WHISPER_LISTENER.takeIf { it.isNotBlank() },
                 "com.app.whisper.native.IWhisperListener",
-                "com.vilassn.whisper.IWhisperListener"
+                "com.vilassn.whisper.IWhisperListener",
+                "com.whisper.android.IWhisperListener"
             )
             val listenerInterface = listenerInterfaceCandidates.mapNotNull { runCatching { Class.forName(it) }.getOrNull() }.firstOrNull()
             if (listenerInterface == null) {
@@ -63,17 +72,18 @@ class WhisperEngineAdapter(
 
             val startMethod = whisperClass.getMethod("start")
             startMethod.invoke(whisperObj)
-            onStatus("Whisper 已启动")
+            onStatus("Whisper 已启动：模型=${modelPath.name}")
         } catch (e: Exception) {
             onStatus("Whisper 启动失败：${e.message}")
+            Log.e("WhisperAdapter", "start failed", e)
         }
     }
 
     override fun stop() {
         try {
             val obj = whisperObj ?: return
-            val stopMethod = obj.javaClass.getMethod("stop")
-            stopMethod.invoke(obj)
+            val stopMethod = obj.javaClass.methods.firstOrNull { it.name == "stop" }
+            stopMethod?.invoke(obj)
             onStatus("Whisper 已停止")
         } catch (_: Exception) {}
     }
@@ -81,19 +91,15 @@ class WhisperEngineAdapter(
     override fun writePcm16(bytes: ByteArray) {
         try {
             val obj = whisperObj ?: return
+            val bb = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
             val floats = FloatArray(bytes.size / 2)
-            var idx = 0
             var i = 0
-            while (i < bytes.size) {
-                val lo = bytes[i].toInt() and 0xFF
-                val hi = bytes[i + 1].toInt()
-                val sample = (hi shl 8) or lo
-                floats[idx++] = sample / 32768f
-                i += 2
+            while (bb.remaining() >= 2) {
+                val s = bb.short
+                floats[i++] = s.toFloat() / 32768f
             }
-            val writeMethod = obj.javaClass.getMethod("writeBuffer", FloatArray::class.java)
-            writeMethod.invoke(obj, floats)
+            val writeMethod = obj.javaClass.methods.firstOrNull { it.name == "writeBuffer" && it.parameterTypes.size == 1 }
+            writeMethod?.invoke(obj, floats)
         } catch (_: Exception) {}
     }
 }
-

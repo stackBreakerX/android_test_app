@@ -242,6 +242,10 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         startActivity(intent)
     }
 
+    fun fullTextDemo(view: View) {
+        com.alex.studydemo.module_view.FullTextActivity.newInstance(this)
+    }
+
     fun fastThumbnailDemo(view: View) {
         val intent = android.content.Intent(this, com.alex.studydemo.module_image.FastThumbnailActivity::class.java)
         startActivity(intent)
@@ -250,6 +254,10 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
     fun dngProcessDemo(view: View) {
         val intent = android.content.Intent(this, com.alex.studydemo.module_image.DngProcessActivity::class.java)
         startActivity(intent)
+    }
+
+    fun twoStageHeaderDemo(view: View) {
+        com.alex.studydemo.module_view.TwoStageHeaderActivity.newInstance(this)
     }
 
     // 合并的多媒体入库入口：跳转到二级页面
@@ -261,6 +269,17 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         NetworkEntryActivity.newInstance(this)
     }
 
+    fun performanceEntry(view: View) {
+        startActivity(Intent(this, com.alex.studydemo.module_performance.PerformanceEntryActivity::class.java))
+    }
+
+    fun messageListDemo(view: View) {
+        startActivity(Intent(this, com.alex.tg.TelegramBubbleActivity::class.java))
+    }
+
+    fun telegramBubbleDemo(view: View) {
+        startActivity(Intent(this, com.alex.tg.TelegramBubbleActivity::class.java))
+    }
     fun testTryCatch(view: View) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -347,7 +366,11 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         MainEntry("View Entry", ::ViewDemo),
         MainEntry("多媒体入库（合并入口）", ::mediaInsertEntry),
         MainEntry("Network Entry", ::networkEntryDemo),
+        MainEntry("Performance Entry", ::performanceEntry),
         MainEntry("Test try catch", ::testTryCatch),
+        MainEntry(getString(R.string.full_text_entry), ::fullTextDemo),
+        MainEntry("Two-Stage Header", ::twoStageHeaderDemo),
+        MainEntry("Telegram Bubble Demo", ::telegramBubbleDemo),
     )
 
     private inner class MainEntryAdapter(

@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.util.Log
 
 class WhisperAndroidSttActivity : BaseActivity<ActivitySpeechRecognizerSttBinding>() {
 
@@ -55,6 +56,7 @@ class WhisperAndroidSttActivity : BaseActivity<ActivitySpeechRecognizerSttBindin
         binding.txtStatus.text = "准备录音"
 
         val modelDir = java.io.File(filesDir, "models/whisper")
+        ensureModelDir(modelDir)
         engine = WhisperEngineAdapter(
             this,
             modelDir,
@@ -94,5 +96,28 @@ class WhisperAndroidSttActivity : BaseActivity<ActivitySpeechRecognizerSttBindin
     override fun onDestroy() {
         super.onDestroy()
         stop()
+    }
+
+    private fun ensureModelDir(dir: java.io.File) {
+        try {
+            if (dir.exists()) return
+            val parent = dir.parentFile
+            if (parent != null && !parent.exists()) parent.mkdirs()
+            dir.mkdirs()
+            val assetBase = "models/whisper"
+            val list = assets.list(assetBase) ?: emptyArray()
+            for (name in list) {
+                val `in` = assets.open("$assetBase/$name")
+                val outFile = java.io.File(dir, name)
+                val out = java.io.FileOutputStream(outFile)
+                `in`.copyTo(out)
+                out.flush()
+                out.close()
+                `in`.close()
+            }
+            Log.d("Whisper", "copied assets to ${dir.absolutePath}")
+        } catch (e: Exception) {
+            Log.e("Whisper", "ensureModelDir failed", e)
+        }
     }
 }

@@ -4,12 +4,13 @@ buildscript {
 
     ext.kotlin_version = "1.8.22"
     repositories {
-        mavenCentral()
+        // 优先使用官方仓库，其次使用国内镜像，缓解 TLS/网络问题
         google()
-//        maven { url "https://maven.aliyun.com/repository/gradle-plugin" }
-//        maven { url "https://maven.aliyun.com/repository/google" }
-//        maven { url "https://maven.aliyun.com/repository/public" }
-//        maven { url "https://maven.aliyun.com/repository/central" }
+        mavenCentral()
+        maven { url "https://maven.aliyun.com/repository/gradle-plugin" }
+        maven { url "https://maven.aliyun.com/repository/google" }
+        maven { url "https://maven.aliyun.com/repository/public" }
+        maven { url "https://maven.aliyun.com/repository/central" }
         maven { url "https://www.jitpack.io" }
     }
 

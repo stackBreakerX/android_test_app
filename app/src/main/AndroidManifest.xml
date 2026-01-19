@@ -34,6 +34,18 @@
             android:name=".module_view.CustomerViewActivity"
             android:exported="false" />
         <activity
+            android:name=".module_view.TwoStageHeaderActivity"
+            android:exported="false" />
+        <activity
+            android:name=".module_view.MessageListActivity"
+            android:exported="false" />
+        <activity
+            android:name=".module_view.MessageListLacActivity"
+            android:exported="false" />
+        <activity
+            android:name=".module_view.FullTextActivity"
+            android:exported="false" />
+        <activity
             android:name=".module_coroutine.FlowActivity"
             android:exported="false" />
         <activity
@@ -106,6 +118,12 @@
             android:exported="false" />
         <activity
             android:name=".module_thread.ThreadEntryActivity"
+            android:exported="false" />
+        <activity
+            android:name=".module_performance.PerformanceEntryActivity"
+            android:exported="false" />
+        <activity
+            android:name=".module_performance.JankStatsActivity"
             android:exported="false" />
         <!-- FileProvider 配置 -->
         <provider

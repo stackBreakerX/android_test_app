@@ -3,6 +3,7 @@ package com.alex.studydemo.app
 import android.app.Application
 import com.alibaba.android.arouter.launcher.ARouter
 import com.blankj.utilcode.util.Utils
+import com.alex.studydemo.module_performance.GlobalJankMonitor
 
 /**
  * @description
@@ -20,5 +21,6 @@ class MyApplication : Application() {
 
         ARouter.init(this)
 
+        GlobalJankMonitor.init(this)
     }
 }

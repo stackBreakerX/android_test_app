@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">StudyDemo</string>
     <string name="title_activity_first_compose">FirstComposeActivity</string>
+    <string name="full_text_entry">FullText Entry</string>
 </resources>

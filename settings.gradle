@@ -1,3 +1,4 @@
 rootProject.name = "StudyDemo"
 include ':app'
 include ':Lib'
+include ':tg'

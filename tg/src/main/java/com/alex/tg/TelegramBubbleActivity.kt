@@ -15,6 +15,7 @@ import com.alex.tg.chat.MessageBubbleView
 
 class TelegramBubbleActivity : BaseActivity<ActivityMessageListBinding>() {
 
+    // 111
     private lateinit var adapter: MessageListAdapter
     private lateinit var enterContainer: MessageEnterTransitionContainer
     private var pendingSendText: String? = null

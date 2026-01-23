@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.alex.studydemo.base.BaseActivity
 import com.alex.studydemo.databinding.ActivityTgTextChatBinding
+import java.util.concurrent.Executors
 
 /**
  * TG 文本聊天示例页面
@@ -21,6 +22,8 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
     private val items = mutableListOf<TgMessageItem>()
     /** 演示用的自增 id（简化唯一性判断） */
     private var nextId = 1L
+    private var recyclerWidth: Int = 0
+    private val precomputeExecutor = Executors.newSingleThreadExecutor()
 
     override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityTgTextChatBinding =
         ActivityTgTextChatBinding.inflate(inflater)
@@ -42,6 +45,9 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
         binding.recyclerView.adapter = adapter
         // 使用 TG 风格的 ItemAnimator，统一入场/移动节奏
         binding.recyclerView.itemAnimator = TgTextItemAnimator()
+        binding.recyclerView.post {
+            recyclerWidth = binding.recyclerView.width
+        }
     }
 
     private fun setupInput() {
@@ -55,17 +61,7 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
 
     private fun seedMessages() {
         // 预置若干条不同类型的消息，便于演示多种气泡与时间布局
-        items.add(
-            TgMessageItem.Text(
-                id = nextId++,
-                text = "这个页面只保留 TG 文本消息的渲染逻辑",
-                fromMe = false,
-                time = "09:41",
-                quote = "Ralph Edwards",
-                translation = "这是翻译文本的示例",
-                reactions = "👍 3  ❤️ 1"
-            )
-        )
+        items.add(makeTextItem("这个页面只保留 TG 文本消息的渲染逻辑", false, "09:41", "Ralph Edwards", "这是翻译文本的示例", "👍 3  ❤️ 1"))
         items.add(
             TgMessageItem.Image(
                 id = nextId++,
@@ -89,14 +85,7 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
                 time = "09:44"
             )
         )
-        items.add(
-            TgMessageItem.Text(
-                id = nextId++,
-                text = "发送消息在右侧显示",
-                fromMe = true,
-                time = "09:45"
-            )
-        )
+        items.add(makeTextItem("发送消息在右侧显示", true, "09:45", null, null, null))
         // 使用 ListAdapter 的 submitList 提交不可变列表，触发 Diff 刷新
         adapter.submitList(items.toList())
         // 保持滚动在最新消息位置
@@ -105,16 +94,59 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
 
     private fun addMessage(text: String, fromMe: Boolean) {
         // 追加一条文本消息并触发列表刷新与滚动
-        items.add(
-            TgMessageItem.Text(
-                id = nextId++,
-                text = text,
-                fromMe = fromMe,
-                time = formatTime(nextId)
-            )
-        )
+        items.add(makeTextItem(text, fromMe, formatTime(nextId), null, null, null))
         adapter.submitList(items.toList()) {
             binding.recyclerView.scrollToPosition(adapter.itemCount - 1)
+        }
+    }
+
+    private fun makeTextItem(
+        text: String,
+        fromMe: Boolean,
+        time: String,
+        quote: String?,
+        translation: String?,
+        reactions: String?
+    ): TgMessageItem.Text {
+        val id = nextId++
+        val hasExtra = !quote.isNullOrBlank() || !translation.isNullOrBlank() || !reactions.isNullOrBlank()
+        if (recyclerWidth > 0) {
+            schedulePrecompute(id, text, fromMe, time, hasExtra)
+        }
+        return TgMessageItem.Text(
+            id = id,
+            text = text,
+            fromMe = fromMe,
+            time = time,
+            quote = quote,
+            translation = translation,
+            reactions = reactions,
+            layoutPack = null
+        )
+    }
+
+    private fun schedulePrecompute(id: Long, text: String, fromMe: Boolean, time: String, hasExtra: Boolean) {
+        val containerWidth = recyclerWidth
+        val density = resources.displayMetrics.density
+        precomputeExecutor.execute {
+            val pack = TgTextLayoutPrecomputer.precompute(
+                text = text,
+                time = time,
+                fromMe = fromMe,
+                containerWidth = containerWidth,
+                density = density,
+                hasExtraBlock = hasExtra,
+                inlineTimeWithText = true
+            )
+            runOnUiThread {
+                val idx = items.indexOfFirst { it is TgMessageItem.Text && it.id == id }
+                if (idx >= 0) {
+                    val old = items[idx] as TgMessageItem.Text
+                    val updated = old.copy(layoutPack = pack)
+                    items[idx] = updated
+                    adapter.submitList(items.toList())
+                }
+            }
         }
     }
 

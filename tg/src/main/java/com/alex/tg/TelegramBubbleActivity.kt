@@ -6,19 +6,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.alex.studydemo.base.BaseActivity
 import com.alex.tg.chat.MessageEnterTransitionContainer
-import com.alex.tg.chat.MessageItem
 import com.alex.tg.chat.MessageListAdapter
 import com.alex.tg.chat.MessageListItemAnimator
-import com.alex.tg.chat.FlyTextEnterTransition
 import com.alex.tg.databinding.ActivityMessageListBinding
-import com.alex.tg.chat.MessageBubbleView
+import com.alex.tg.chat.model.MessageModel
 
 class TelegramBubbleActivity : BaseActivity<ActivityMessageListBinding>() {
 
     // 111
     private lateinit var adapter: MessageListAdapter
     private lateinit var enterContainer: MessageEnterTransitionContainer
-    private var pendingSendText: String? = null
 
     override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityMessageListBinding =
         ActivityMessageListBinding.inflate(inflater)
@@ -42,37 +39,26 @@ class TelegramBubbleActivity : BaseActivity<ActivityMessageListBinding>() {
         adapter.registerAdapterDataObserver(object : androidx.recyclerview.widget.RecyclerView.AdapterDataObserver() {
             override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
                 binding.recyclerView.scrollToPosition(adapter.itemCount - 1)
-                binding.recyclerView.post {
-                    val pos = adapter.itemCount - 1
-                    val vh = binding.recyclerView.findViewHolderForAdapterPosition(pos)
-                    val bubble = vh?.itemView?.findViewById<MessageBubbleView>(com.alex.tg.R.id.bubble)
-                    val sendText = pendingSendText
-                    if (bubble != null && sendText != null && sendText.isNotEmpty()) {
-                        val transition = FlyTextEnterTransition(binding.inputEdit, bubble, sendText)
-                        enterContainer.addTransition(transition)
-                        pendingSendText = null
-                    }
-                }
             }
         })
 
         adapter.submitInitial(
             listOf(
-                MessageItem.Text("这是一个仿 Telegram 的消息气泡动画页面"),
-                MessageItem.Text("底部输入后点击“发送”查看进入动画与气泡涟漪"),
-                MessageItem.Text("点击气泡可触发选择涟漪效果")
+                MessageModel(1, MessageModel.Type.TEXT, text = "这是一个仿 Telegram 的消息气泡动画页面", time = "09:43"),
+                MessageModel(2, MessageModel.Type.TEXT, text = "底部输入后点击“发送”查看进入动画与气泡涟漪", time = "09:43"),
+                MessageModel(3, MessageModel.Type.TEXT, text = "点击气泡可触发选择涟漪效果", time = "09:43")
             )
         )
 
         binding.sendButton.setOnClickListener {
-            val text = binding.inputEdit.text?.toString().orEmpty().ifBlank { "空消息" }
+            val input = binding.inputEdit.text?.toString() ?: ""
+            val text = if (input.isBlank()) "空消息" else input
             binding.inputEdit.setText("")
-            pendingSendText = text
-            adapter.addMessage(MessageItem.Text(text))
+            val id = System.currentTimeMillis()
+            adapter.addMessage(MessageModel(id, MessageModel.Type.TEXT, text = text, time = "09:43"))
             binding.recyclerView.post {
                 binding.recyclerView.scrollToPosition(adapter.itemCount - 1)
             }
         }
     }
 }
-

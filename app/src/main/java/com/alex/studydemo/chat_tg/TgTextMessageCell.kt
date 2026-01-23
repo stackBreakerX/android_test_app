@@ -31,4 +31,10 @@ class TgTextMessageCell @JvmOverloads constructor(
         textContentView.setText(text)
         bindBase(time, out)
     }
+
+    fun bindMessage(text: String, time: String, out: Boolean, pack: TgTextLayoutPack?) {
+        textContentView.setLayoutPack(pack)
+        textContentView.setText(text)
+        bindBase(time, out)
+    }
 }

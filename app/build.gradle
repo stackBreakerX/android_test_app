@@ -203,7 +203,7 @@ dependencies {
 //    kapt 'com.facebook.litho:lbitho-sections-processor:0.50.2'
 
     api project(path: ':Lib')
-    implementation project(path: ':tg')
+//    implementation project(path: ':tg')
 
     // AndroidX Metrics - JankStats
     // 由 Lib 提供

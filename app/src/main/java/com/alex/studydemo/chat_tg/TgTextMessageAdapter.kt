@@ -21,7 +21,8 @@ sealed class TgMessageItem(open val id: Long) {
         val time: String,
         val quote: String? = null,
         val translation: String? = null,
-        val reactions: String? = null
+        val reactions: String? = null,
+        val layoutPack: TgTextLayoutPack? = null
     ) : TgMessageItem(id)
 
     data class Image(
@@ -78,7 +79,6 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        // 分发绑定逻辑到对应的 ViewHolder
         when (val item = getItem(position)) {
             is TgMessageItem.Text -> (holder as TextVH).bind(item)
             is TgMessageItem.Image -> (holder as MediaVH).bindImage(item)
@@ -88,9 +88,8 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
     }
 
     class TextVH(private val cell: TgTextMessageCell) : RecyclerView.ViewHolder(cell) {
-        /** 绑定文本消息内容与额外信息（引用/翻译/点赞） */
         fun bind(item: TgMessageItem.Text) {
-            cell.bindMessage(item.text, item.time, item.fromMe)
+            cell.bindMessage(item.text, item.time, item.fromMe, item.layoutPack)
             // 额外区块：引用/翻译/点赞（来自 XML view）
             val context = cell.context
             if (item.quote == null && item.translation == null && item.reactions == null) {

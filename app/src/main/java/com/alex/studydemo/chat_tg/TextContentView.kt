@@ -26,10 +26,17 @@ class TextContentView @JvmOverloads constructor(
     private var contentWidth: Int = 0
     // 为时间预留的右侧宽度（仅在文本行内时间时使用）
     private var reservedRight: Int = 0
+    private var prebuiltPack: TgTextLayoutPack? = null
 
     /** 设置文本内容并请求重新布局与重绘 */
     fun setText(text: String) {
         messageText = text
+        requestLayout()
+        invalidate()
+    }
+
+    fun setLayoutPack(pack: TgTextLayoutPack?) {
+        prebuiltPack = pack
         requestLayout()
         invalidate()
     }
@@ -44,6 +51,13 @@ class TextContentView @JvmOverloads constructor(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         TgTheme.init(resources.displayMetrics.density)
         val maxWidth = MeasureSpec.getSize(widthMeasureSpec)
+        val pack = prebuiltPack
+        if (pack != null && pack.computedForWidth > 0) {
+            blocks = pack.blocks
+            contentWidth = pack.contentWidth
+            setMeasuredDimension(pack.contentWidth, pack.height)
+            return
+        }
         val available = max(1, maxWidth - reservedRight)
         blocks = TgTextLayoutBuilder.buildBlocks(messageText, textPaint, available)
         var cw = 0

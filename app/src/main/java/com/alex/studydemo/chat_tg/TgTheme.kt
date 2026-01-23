@@ -3,6 +3,11 @@ package com.alex.studydemo.chat_tg
 import android.graphics.Paint
 import android.text.TextPaint
 
+/**
+ * TG 样式主题与画笔管理
+ * - 提供聊天文本与时间的 TextPaint，并按设备 density 初始化
+ * - 仅保留文本消息所需的通用资源，简化演示
+ */
 object TgTheme {
     private var initialized = false
 
@@ -47,4 +52,3 @@ object TgTheme {
         chatTimePaintIn.color = 0x7A121212.toInt()
     }
 }
-

@@ -8,6 +8,11 @@ import android.util.AttributeSet
 import android.view.View
 import kotlin.math.max
 
+/**
+ * 文件内容视图
+ * - 左侧绘制文件图标，右侧两行文字显示文件名与大小
+ * - 测量时依据文字宽度与固定高度进行布局
+ */
 class FileContentView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
@@ -24,6 +29,7 @@ class FileContentView @JvmOverloads constructor(
     private var contentWidth = 0
     private var contentHeight = 0
 
+    /** 文件名与文件大小（绑定时由 Cell 设置） */
     var fileName: String = "document.pdf"
     var fileSize: String = "2.4 MB"
 
@@ -56,4 +62,3 @@ class FileContentView @JvmOverloads constructor(
 
     private fun dp(value: Float): Int = (value * resources.displayMetrics.density).toInt()
 }
-

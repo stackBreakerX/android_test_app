@@ -3,6 +3,11 @@ package com.alex.studydemo.chat_tg
 import android.graphics.RectF
 import android.text.TextPaint
 
+/**
+ * 时间文本锚点接口
+ * - 提供时间在气泡内的 X/Y 坐标计算（右对齐）
+ * - 文本内联与右下角两种策略
+ */
 interface TgTimeAnchor {
     fun getTimeX(bubble: RectF, timeWidth: Float, paddingEnd: Float): Float
     fun getTimeY(bubble: RectF, textBaselineY: Float?, paint: TextPaint, paddingBottom: Float): Float
@@ -29,4 +34,3 @@ object TgTimeAnchorBottomRight : TgTimeAnchor {
         return bubble.bottom - paddingBottom - paint.fontMetrics.descent
     }
 }
-

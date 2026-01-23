@@ -5,9 +5,15 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 
+/**
+ * 文本布局构建器
+ * - 根据宽度与画笔生成 StaticLayout，并按行数切分为多个 TgTextLayoutBlock
+ * - 兼容 API < 23 的旧版 StaticLayout 构造
+ */
 object TgTextLayoutBuilder {
     fun buildBlocks(text: CharSequence, paint: TextPaint, width: Int): List<TgTextLayoutBlock> {
         if (text.isEmpty()) {
+            // 文本为空时返回一个空布局块，避免后续判空
             val empty = StaticLayout.Builder.obtain("", 0, 0, paint, width)
                 .setAlignment(Layout.Alignment.ALIGN_NORMAL)
                 .setIncludePad(false)
@@ -49,4 +55,3 @@ object TgTextLayoutBuilder {
         }
     }
 }
-

@@ -9,6 +9,12 @@ import android.view.View
 import android.view.ViewGroup
 import kotlin.math.max
 
+/**
+ * TG 气泡消息基础 ViewGroup
+ * - 统一实现气泡绘制、时间文本绘制与布局测量逻辑
+ * - 子类通过提供内容视图与时间锚点，获得文本/图片/视频/文件等不同展示能力
+ * - 兼容“时间内联到末行”与“右下角时间行”两种策略，贴近 TG 行为
+ */
 abstract class BaseTgMessageCell @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
@@ -250,4 +256,3 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     protected fun dp(value: Float): Int = (value * resources.displayMetrics.density).toInt()
     protected fun dpF(value: Float): Float = TgAndroidUtilities.dpF(value, resources.displayMetrics.density)
 }
-

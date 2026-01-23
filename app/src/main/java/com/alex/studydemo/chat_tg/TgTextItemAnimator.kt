@@ -5,6 +5,12 @@ import android.view.animation.Interpolator
 import android.view.animation.PathInterpolator
 import androidx.recyclerview.widget.RecyclerView
 
+/**
+ * TG 风格的 RecyclerView Item 动画
+ * - 入场：淡入 + 轻微上移 + 缩放回弹
+ * - 移动：位移平滑回到目标位置
+ * - 移除：淡出 + 轻微下移
+ */
 class TgTextItemAnimator : RecyclerView.ItemAnimator() {
 
     // 对齐 TG 的入场曲线（ChatListItemAnimator.DEFAULT_INTERPOLATOR）
@@ -95,4 +101,3 @@ class TgTextItemAnimator : RecyclerView.ItemAnimator() {
     override fun endAnimations() {}
     override fun isRunning(): Boolean = false
 }
-

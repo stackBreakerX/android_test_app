@@ -7,6 +7,12 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.alex.studydemo.databinding.ItemTgTextCellBinding
 
+/**
+ * TG 消息数据模型（演示用）
+ * - Text：文本消息，支持引用/翻译/点赞等额外信息
+ * - Image/Video：媒体消息（简化为占位视图）
+ * - File：文件消息，展示文件名与大小
+ */
 sealed class TgMessageItem(open val id: Long) {
     data class Text(
         override val id: Long,
@@ -39,9 +45,15 @@ sealed class TgMessageItem(open val id: Long) {
     ) : TgMessageItem(id)
 }
 
+/**
+ * TG 文本消息适配器
+ * - 通过不同 ViewType 映射到对应的 Cell（文本/图片/视频/文件）
+ * - 使用 DiffUtil 比较 id 与内容，提升刷新效率
+ */
 class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>(Diff) {
 
     companion object {
+        /** 四类消息类型常量 */
         private const val TYPE_TEXT = 1
         private const val TYPE_IMAGE = 2
         private const val TYPE_VIDEO = 3
@@ -56,6 +68,7 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        // 根据类型创建相应的气泡 Cell
         return when (viewType) {
             TYPE_IMAGE -> MediaVH(TgImageMessageCell(parent.context))
             TYPE_VIDEO -> MediaVH(TgVideoMessageCell(parent.context))
@@ -65,6 +78,7 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        // 分发绑定逻辑到对应的 ViewHolder
         when (val item = getItem(position)) {
             is TgMessageItem.Text -> (holder as TextVH).bind(item)
             is TgMessageItem.Image -> (holder as MediaVH).bindImage(item)
@@ -74,6 +88,7 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
     }
 
     class TextVH(private val cell: TgTextMessageCell) : RecyclerView.ViewHolder(cell) {
+        /** 绑定文本消息内容与额外信息（引用/翻译/点赞） */
         fun bind(item: TgMessageItem.Text) {
             cell.bindMessage(item.text, item.time, item.fromMe)
             // 额外区块：引用/翻译/点赞（来自 XML view）
@@ -112,12 +127,15 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
     }
 
     class MediaVH(private val cell: BaseTgMessageCell) : RecyclerView.ViewHolder(cell) {
+        /** 绑定图片消息的基础信息（时间/方向） */
         fun bindImage(item: TgMessageItem.Image) {
             cell.bindBase(item.time, item.fromMe)
         }
+        /** 绑定视频消息的基础信息（时间/方向） */
         fun bindVideo(item: TgMessageItem.Video) {
             cell.bindBase(item.time, item.fromMe)
         }
+        /** 绑定文件消息的基础信息，并设置文件名与大小 */
         fun bindFile(item: TgMessageItem.File) {
             if (cell is TgFileMessageCell) {
                 cell.setFile(item.name, item.size)
@@ -127,11 +145,12 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
     }
 
     object Diff : DiffUtil.ItemCallback<TgMessageItem>() {
+        /** 判断是否为同一条消息：依据唯一 id */
         override fun areItemsTheSame(oldItem: TgMessageItem, newItem: TgMessageItem): Boolean =
             oldItem.id == newItem.id
 
+        /** 判断内容是否相同：数据类的 equals 即可 */
         override fun areContentsTheSame(oldItem: TgMessageItem, newItem: TgMessageItem): Boolean =
             oldItem == newItem
     }
 }
-

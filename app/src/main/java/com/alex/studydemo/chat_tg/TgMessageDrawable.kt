@@ -8,6 +8,11 @@ import android.graphics.RectF
 import android.graphics.drawable.Drawable
 import kotlin.math.max
 
+/**
+ * TG 风格消息气泡绘制器
+ * - 根据“自己发/别人发”切换填充与描边颜色
+ * - 生成包含尾巴与邻接圆角的路径，贴近 Telegram 的气泡形状
+ */
 class TgMessageDrawable(private var out: Boolean) : Drawable() {
 
     // 气泡填充/描边画笔（对应 TG 消息气泡）
@@ -20,6 +25,7 @@ class TgMessageDrawable(private var out: Boolean) : Drawable() {
         strokeWidth = 0.5f
         color = if (out) COLOR_OUT_STROKE else COLOR_IN_STROKE
     }
+    /** 切换气泡方向（右侧/左侧），并刷新颜色 */
     fun setOut(out: Boolean) {
         if (this.out == out) return
         this.out = out
@@ -68,6 +74,11 @@ class TgMessageDrawable(private var out: Boolean) : Drawable() {
 
     override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
 
+    /**
+     * 生成气泡路径
+     * - out=true：尾巴在右侧；out=false：尾巴在左侧
+     * - 根据“邻近消息”与“顶部/底部裁剪”参数调整圆角半径
+     */
     private fun generatePath(
         path: Path,
         bounds: Rect,
@@ -195,10 +206,13 @@ class TgMessageDrawable(private var out: Boolean) : Drawable() {
     private fun dpF(value: Float): Float = TgAndroidUtilities.dpF(value, TgTheme.density)
 
     companion object {
+        /** 右侧（自己发）气泡填充颜色 */
         private const val COLOR_OUT = 0xFFE1FFC7.toInt()
+        /** 左侧（别人发）气泡填充颜色 */
         private const val COLOR_IN = 0xFFFFFFFF.toInt()
+        /** 右侧气泡描边颜色（轻度青色） */
         private const val COLOR_OUT_STROKE = 0x3300D0DB
+        /** 左侧气泡描边颜色（轻度黑色） */
         private const val COLOR_IN_STROKE = 0x1A121212
     }
 }
-

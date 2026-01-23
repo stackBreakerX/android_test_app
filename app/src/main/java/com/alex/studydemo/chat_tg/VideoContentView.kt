@@ -7,6 +7,10 @@ import android.graphics.Path
 import android.util.AttributeSet
 import android.view.View
 
+/**
+ * 视频内容视图（占位示意）
+ * - 以固定比例（16:9）测量内容尺寸，并绘制白色三角形作为播放按钮
+ */
 class VideoContentView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
@@ -42,4 +46,3 @@ class VideoContentView @JvmOverloads constructor(
     override fun getLastLineBaseline(): Float? = null
     override fun getLastLineWidth(): Int = 0
 }
-

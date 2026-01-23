@@ -90,37 +90,31 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
     class TextVH(private val cell: TgTextMessageCell) : RecyclerView.ViewHolder(cell) {
         fun bind(item: TgMessageItem.Text) {
             cell.bindMessage(item.text, item.time, item.fromMe, item.layoutPack)
-            // 额外区块：引用/翻译/点赞（来自 XML view）
-            val context = cell.context
-            if (item.quote == null && item.translation == null && item.reactions == null) {
-                cell.setExtraView(null)
+            // 额外区块：引用/翻译/点赞（分别挂到 BaseTgMessageCell 的对应位置）
+            // 引用（位于内容上方）
+            if (item.quote.isNullOrBlank()) {
+                cell.setReplyView(null)
             } else {
-                val extra = LayoutInflater.from(context)
-                    .inflate(com.alex.studydemo.R.layout.view_tg_text_extras, cell, false)
-                val quoteContainer = extra.findViewById<android.view.View>(com.alex.studydemo.R.id.quoteContainer)
-                val quoteText = extra.findViewById<android.widget.TextView>(com.alex.studydemo.R.id.quoteText)
-                val translationText = extra.findViewById<android.widget.TextView>(com.alex.studydemo.R.id.translationText)
-                val reactionsText = extra.findViewById<android.widget.TextView>(com.alex.studydemo.R.id.reactionsText)
-
-                if (item.quote.isNullOrBlank()) {
-                    quoteContainer.visibility = android.view.View.GONE
-                } else {
-                    quoteContainer.visibility = android.view.View.VISIBLE
-                    quoteText.text = item.quote
-                }
-                if (item.translation.isNullOrBlank()) {
-                    translationText.visibility = android.view.View.GONE
-                } else {
-                    translationText.visibility = android.view.View.VISIBLE
-                    translationText.text = item.translation
-                }
-                if (item.reactions.isNullOrBlank()) {
-                    reactionsText.visibility = android.view.View.GONE
-                } else {
-                    reactionsText.visibility = android.view.View.VISIBLE
-                    reactionsText.text = item.reactions
-                }
-                cell.setExtraView(extra)
+                val reply = ReplyView(cell.context)
+                reply.setText(item.quote!!)
+                cell.setReplyView(reply)
+            }
+            // 翻译（位于内容下方）
+            if (item.translation.isNullOrBlank()) {
+                cell.setTranslateView(null)
+            } else {
+                val translate = TranslateView(cell.context)
+                translate.setText(item.translation!!)
+                cell.setTranslateView(translate)
+            }
+            // 点赞/反应（锚定气泡底部左侧）
+            if (item.reactions.isNullOrBlank()) {
+                cell.setLiveView(null)
+            } else {
+                val live = LiveView(cell.context)
+                // 用空格拆分为多个反应项
+                live.reactions = item.reactions!!.split(' ').filter { it.isNotBlank() }
+                cell.setLiveView(live)
             }
         }
     }

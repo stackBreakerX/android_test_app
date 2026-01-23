@@ -274,19 +274,19 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
     }
 
     fun messageListDemo(view: View) {
-        startActivity(Intent(this, com.alex.tg.TelegramBubbleActivity::class.java))
+//        startActivity(Intent(this, com.alex.tg.TelegramBubbleActivity::class.java))
     }
 
     fun telegramBubbleDemo(view: View) {
-        startActivity(Intent(this, com.alex.tg.TelegramBubbleActivity::class.java))
+//        startActivity(Intent(this, com.alex.tg.TelegramBubbleActivity::class.java))
     }
 
     fun telegramChatDetailDemo(view: View) {
-        startActivity(Intent(this, com.alex.tg.TelegramChatDetailActivity::class.java))
+//        startActivity(Intent(this, com.alex.tg.TelegramChatDetailActivity::class.java))
     }
 
     fun chatActivityLiteDemo(view: View) {
-        startActivity(Intent(this, com.alex.studydemo.chatlite.ChatActivityLite::class.java))
+//        startActivity(Intent(this, com.alex.studydemo.chatlite.ChatActivityLite::class.java))
     }
 
     fun tgTextChatDemo(view: View) {

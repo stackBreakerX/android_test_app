@@ -53,8 +53,15 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     protected abstract val contentView: View
     protected abstract val contentAsTg: TgContentView
 
-    // 额外内容视图（翻译/引用/点赞等，来自外部 XML）
-    private var extraView: View? = null
+    // 额外内容视图（用户名、引用、翻译、点赞等，来自外部 XML）
+    // 用户名：置于气泡内容顶部
+    private var userNameView: View? = null
+    // 引用：位于用户名下方、内容视图上方
+    private var replyView: View? = null
+    // 翻译：位于内容视图下方
+    private var translateView: View? = null
+    // 点赞/反应：锚定到气泡底部左侧
+    private var liveView: View? = null
 
     // 时间是否内联 / 是否需要换行
     private var timeInline = false
@@ -82,14 +89,33 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         invalidate()
     }
 
-    fun setExtraView(view: View?) {
-        extraView?.let { removeView(it) }
-        extraView = view
-        if (view != null) {
-            addView(view)
-        }
-        requestLayout()
-        invalidate()
+    /** 设置“用户名” View（为空则不显示） */
+    fun setUserNameView(view: View?) {
+        userNameView?.let { removeView(it) }
+        userNameView = view
+        view?.let { addView(it) }
+        requestLayout(); invalidate()
+    }
+    /** 设置“引用/转发” View（为空则不显示） */
+    fun setReplyView(view: View?) {
+        replyView?.let { removeView(it) }
+        replyView = view
+        view?.let { addView(it) }
+        requestLayout(); invalidate()
+    }
+    /** 设置“翻译” View（为空则不显示） */
+    fun setTranslateView(view: View?) {
+        translateView?.let { removeView(it) }
+        translateView = view
+        view?.let { addView(it) }
+        requestLayout(); invalidate()
+    }
+    /** 设置“点赞/反应” View（为空则不显示） */
+    fun setLiveView(view: View?) {
+        liveView?.let { removeView(it) }
+        liveView = view
+        view?.let { addView(it) }
+        requestLayout(); invalidate()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -151,15 +177,27 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         val bubbleWidth = bubbleContentWidth + getPaddingStartLocal() + getPaddingEndLocal()
         val contentHeight = contentView.measuredHeight
 
-        val extraHeight = measureExtraView(bubbleContentWidth)
-        val extraBlockHeight = if (extraHeight > 0) extraHeight + extraSpacing else 0
-        if (extraHeight > 0 && inlineTimeWithText) {
-            // 有额外块时，文本时间固定在底部行
+        // 计算顶部模块（用户名）与引用块的高度累加
+        val userNameH = measureOptionalChild(userNameView, bubbleContentWidth)
+        val replyH = measureOptionalChild(replyView, bubbleContentWidth)
+        val topBlocksH = listOf(userNameH, replyH).filter { it > 0 }.sum() + if ((userNameH + replyH) > 0) extraSpacing else 0
+
+        // 计算底部模块（翻译块）高度
+        val translateH = measureOptionalChild(translateView, bubbleContentWidth)
+        val bottomBlocksH = if (translateH > 0) translateH + extraSpacing else 0
+
+        // 当存在额外块并使用“行内时间”策略时，强制时间换行（避免重叠）
+        if ((topBlocksH > 0 || bottomBlocksH > 0) && inlineTimeWithText) {
             timeInline = false
             timeWrapped = true
         }
 
-        val bubbleHeight = contentHeight + paddingTop + paddingBottom + extraBlockHeight + if (timeWrapped) timeRowHeight else 0
+        // 为底部 LiveView 预留空间（锚定底部左侧）
+        val liveH = measureOptionalChild(liveView, bubbleContentWidth)
+        val liveReserve = if (liveH > 0) liveH + extraSpacing else 0
+
+        // 气泡总高度 = 顶部块 + 内容 + 底部块 + 时间行（可选） + Live 预留 + 内边距
+        val bubbleHeight = topBlocksH + contentHeight + bottomBlocksH + paddingTop + paddingBottom + liveReserve + if (timeWrapped) timeRowHeight else 0
         val totalHeight = bubbleHeight + dp(12f)
         setMeasuredDimension(width, totalHeight)
     }
@@ -180,29 +218,47 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         }
         val bubbleWidth = bubbleContentWidth + getPaddingStartLocal() + getPaddingEndLocal()
         val contentHeight = contentView.measuredHeight
-        val extraHeight = extraView?.measuredHeight ?: 0
-        val extraBlockHeight = if (extraHeight > 0) extraHeight + extraSpacing else 0
-        val bubbleHeight = contentHeight + paddingTop + paddingBottom + extraBlockHeight + if (timeWrapped) timeRowHeight else 0
+        val userNameH = userNameView?.measuredHeight ?: 0
+        val replyH = replyView?.measuredHeight ?: 0
+        val translateH = translateView?.measuredHeight ?: 0
+        val topBlocksH = listOf(userNameH, replyH).filter { it > 0 }.sum() + if ((userNameH + replyH) > 0) extraSpacing else 0
+        val bottomBlocksH = if (translateH > 0) translateH + extraSpacing else 0
+        val liveH = liveView?.measuredHeight ?: 0
+        val liveReserve = if (liveH > 0) liveH + extraSpacing else 0
+        val bubbleHeight = topBlocksH + contentHeight + bottomBlocksH + paddingTop + paddingBottom + liveReserve + if (timeWrapped) timeRowHeight else 0
         val left = if (fromMe) width - bubbleWidth - dpF(8f) else dpF(8f)
         val top = dpF(6f)
         bubbleRect.set(left, top, left + bubbleWidth, top + bubbleHeight)
 
-        contentView.layout(
-            (bubbleRect.left + getPaddingStartLocal()).toInt(),
-            (bubbleRect.top + paddingTop).toInt(),
-            (bubbleRect.left + getPaddingStartLocal() + contentView.measuredWidth).toInt(),
-            (bubbleRect.top + paddingTop + contentView.measuredHeight).toInt()
-        )
+        // 1) 顶部：用户名
+        var cy = (bubbleRect.top + paddingTop).toInt()
+        val cx = (bubbleRect.left + getPaddingStartLocal()).toInt()
+        userNameView?.let { child ->
+            child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
+            cy += child.measuredHeight + extraSpacing
+        }
+        // 2) 引用/转发
+        replyView?.let { child ->
+            child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
+            cy += child.measuredHeight + extraSpacing
+        }
 
-        extraView?.let { child ->
-            val cx = (bubbleRect.left + getPaddingStartLocal()).toInt()
-            val cy = (bubbleRect.top + paddingTop + contentHeight + extraSpacing).toInt()
-            child.layout(
-                cx,
-                cy,
-                cx + child.measuredWidth,
-                cy + child.measuredHeight
-            )
+        contentView.layout(
+            cx,
+            cy,
+            cx + contentView.measuredWidth,
+            cy + contentView.measuredHeight
+        )
+        cy += contentView.measuredHeight + extraSpacing
+
+        // 3) 底部：翻译
+        translateView?.let { child ->
+            child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
+        }
+        // 4) LiveView 锚定气泡底部左侧
+        liveView?.let { child ->
+            val ly = (bubbleRect.bottom - paddingBottom - child.measuredHeight).toInt()
+            child.layout(cx, ly, cx + child.measuredWidth, ly + child.measuredHeight)
         }
     }
 
@@ -232,18 +288,25 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             lastLineWidth + timeExtraWidth + timeWidth <= contentWidth + 0.5f
         // 时间始终右对齐在气泡内（TG 行为）
         val timeX = timeAnchor.getTimeX(bubbleRect, timeWidth, getPaddingEndLocal().toFloat())
-        val timeY = if (inlineAllowed) {
+        var timeY = if (inlineAllowed) {
             // 行内时间：基线略低于末行
             timeAnchor.getTimeY(bubbleRect, lastBaseline, timePaint, paddingBottom.toFloat())
         } else {
             // 行内条件不满足时，按底部时间行绘制避免重叠
             TgTimeAnchorBottomRight.getTimeY(bubbleRect, lastBaseline, timePaint, paddingBottom.toFloat())
         }
+        // 若底部存在 LiveView，则避免遮挡：时间上移到 LiveView 之上
+        liveView?.let { child ->
+            if (timeY + timePaint.descent() > child.top) {
+                timeY = child.top - dpF(2f)
+            }
+        }
         canvas.drawText(timeText, timeX, timeY, timePaint)
     }
 
-    private fun measureExtraView(maxWidth: Int): Int {
-        val child = extraView ?: return 0
+    /** 可选子 View 测量（为空返回 0，高度用于累加） */
+    private fun measureOptionalChild(child: View?, maxWidth: Int): Int {
+        child ?: return 0
         val widthSpec = MeasureSpec.makeMeasureSpec(maxWidth, MeasureSpec.AT_MOST)
         val heightSpec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         child.measure(widthSpec, heightSpec)

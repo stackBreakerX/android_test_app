@@ -280,6 +280,18 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
     fun telegramBubbleDemo(view: View) {
         startActivity(Intent(this, com.alex.tg.TelegramBubbleActivity::class.java))
     }
+
+    fun telegramChatDetailDemo(view: View) {
+        startActivity(Intent(this, com.alex.tg.TelegramChatDetailActivity::class.java))
+    }
+
+    fun chatActivityLiteDemo(view: View) {
+        startActivity(Intent(this, com.alex.studydemo.chatlite.ChatActivityLite::class.java))
+    }
+
+    fun tgTextChatDemo(view: View) {
+        startActivity(Intent(this, com.alex.studydemo.chat_tg.TgTextChatActivity::class.java))
+    }
     fun testTryCatch(view: View) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -371,6 +383,9 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         MainEntry(getString(R.string.full_text_entry), ::fullTextDemo),
         MainEntry("Two-Stage Header", ::twoStageHeaderDemo),
         MainEntry("Telegram Bubble Demo", ::telegramBubbleDemo),
+        MainEntry("Telegram 消息详情页", ::telegramChatDetailDemo),
+        MainEntry("ChatActivity Lite", ::chatActivityLiteDemo),
+        MainEntry("TG 文本消息(对齐)", ::tgTextChatDemo),
     )
 
     private inner class MainEntryAdapter(

@@ -3,17 +3,12 @@ package com.alex.tg.chat
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.LinearGradient
-import android.graphics.Shader
 import android.graphics.RectF
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.view.View
-import android.view.animation.DecelerateInterpolator
 import android.widget.EditText
-import com.alex.tg.chat.CubicBezierInterpolator
-import com.alex.tg.chat.SimpleEnterTransition
 
 class FlyTextEnterTransition(
     private val sourceView: EditText,
@@ -21,21 +16,19 @@ class FlyTextEnterTransition(
     private val text: String
 ) : SimpleEnterTransition() {
 
-    private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#2B6EF7")
+    }
     private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         textSize = sourceView.textSize
-    }
-    private val bubbleTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        textSize = 16f * (targetView.resources.displayMetrics.scaledDensity)
     }
     private val rect = RectF()
     private var srcLayout: StaticLayout? = null
     private var dstLayout: StaticLayout? = null
 
-    private val interpolator = CubicBezierInterpolator.EaseOut
-    private val duration = 320L
+    private val interpolator = CubicBezierInterpolator(0.1992, 0.0106, 0.2792, 0.9102)
+    private val duration = 250L
     private var startTime = 0L
     private var finished = false
     private val paddingH = 12f
@@ -43,17 +36,18 @@ class FlyTextEnterTransition(
     private val endRadius = 18f
     private val startRadius = 12f
 
-    private val startTop = Color.parseColor("#5C9BFF")
-    private val startBottom = Color.parseColor("#3D7EF9")
-    private val endTop = Color.parseColor("#3C86FF")
-    private val endBottom = Color.parseColor("#2B6EF7")
+    private val startColor = Color.parseColor("#4C8DFB")
+    private val endColor = Color.parseColor("#2B6EF7")
 
-    private var toXOffset = 0f
-    private var toYOffset = 0f
     private var fromX = 0f
     private var fromY = 0f
     private var toX = 0f
     private var toY = 0f
+    private var fromW = 0f
+    private var fromH = 0f
+    private var toW = 0f
+    private var toH = 0f
+    private var targetAlphaBackup = 1f
 
     override fun onStart() {
         startTime = System.currentTimeMillis()
@@ -65,7 +59,7 @@ class FlyTextEnterTransition(
             .build()
         val targetWidth = targetView.width.coerceAtLeast((sourceView.width * 0.8f).toInt())
         val maxTextWidth = (targetWidth - paddingH * 2).coerceAtLeast(1f).toInt()
-        dstLayout = StaticLayout.Builder.obtain(text, 0, text.length, bubbleTextPaint, maxTextWidth)
+        dstLayout = StaticLayout.Builder.obtain(text, 0, text.length, textPaint, maxTextWidth)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setIncludePad(false)
             .build()
@@ -76,25 +70,27 @@ class FlyTextEnterTransition(
         sourceView.getLocationOnScreen(srcLoc)
         val dstLoc = IntArray(2)
         targetView.getLocationOnScreen(dstLoc)
-        fromX = (srcLoc[0] - containerLoc[0]).toFloat() + sourceView.paddingLeft
         val lastLine = (srcLayoutObj?.lineCount ?: 1) - 1
-        val srcLineBottom = if (srcLayoutObj != null && lastLine >= 0) {
-//            srcLayoutObj.lineBottom(lastLine)
-            srcLayout?.getLineBottom(lastLine) ?: 0
-        } else {
-            sourceView.height
-        }
-        val srcLineTop = if (srcLayoutObj != null && lastLine >= 0) {
-            srcLayoutObj.getLineTop(lastLine)
-        } else {
-            (srcLineBottom.toFloat() - textPaint.textSize).toInt()
-        }
-        fromY = (srcLoc[1] - containerLoc[1]).toFloat() + srcLineTop - sourceView.scrollY
+        val lineLeft = if (srcLayoutObj != null && lastLine >= 0) srcLayoutObj.getLineLeft(lastLine) else 0f
+        val lineRight = if (srcLayoutObj != null && lastLine >= 0) srcLayoutObj.getLineRight(lastLine) else sourceView.width.toFloat()
+        val lineTop = if (srcLayoutObj != null && lastLine >= 0) srcLayoutObj.getLineTop(lastLine) else 0
+        val lineBottom = if (srcLayoutObj != null && lastLine >= 0) srcLayoutObj.getLineBottom(lastLine) else sourceView.height
+        val lineWidth = (lineRight - lineLeft).coerceAtLeast(1f)
+        val lineHeight = (lineBottom - lineTop).coerceAtLeast(1)
 
-        toXOffset = paddingH
-        toYOffset = paddingV
-        toX = (dstLoc[0] - containerLoc[0]).toFloat() + toXOffset
-        toY = (dstLoc[1] - containerLoc[1]).toFloat() + toYOffset
+        fromX = (srcLoc[0] - containerLoc[0]).toFloat() + sourceView.paddingLeft + lineLeft
+        fromY = (srcLoc[1] - containerLoc[1]).toFloat() + lineTop - sourceView.scrollY
+        fromW = lineWidth + paddingH * 2
+        fromH = lineHeight + paddingV * 2
+
+        toX = (dstLoc[0] - containerLoc[0]).toFloat()
+        toY = (dstLoc[1] - containerLoc[1]).toFloat()
+        toW = targetView.width.toFloat().coerceAtLeast(1f)
+        toH = targetView.height.toFloat().coerceAtLeast(1f)
+
+        targetAlphaBackup = targetView.alpha
+        targetView.alpha = 0f
+        sourceView.alpha = 0f
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -104,65 +100,36 @@ class FlyTextEnterTransition(
 
         val curLeft = fromX + (toX - fromX) * p
         val curTop = fromY + (toY - fromY) * p
+        val curW = fromW + (toW - fromW) * p
+        val curH = fromH + (toH - fromH) * p
+        rect.set(curLeft, curTop, curLeft + curW, curTop + curH)
 
-        val tl = dstLayout ?: return
-        val w = tl.width + paddingH * 2
-        val h = tl.height + paddingV * 2
-        rect.set(curLeft, curTop, curLeft + w, curTop + h)
-
-        val alpha = (255 * (1f - 0.2f * p)).toInt()
-        textPaint.alpha = alpha
-        val scale = 0.90f + 0.10f * p
         val radius = startRadius + (endRadius - startRadius) * p
-
-        val topColor = blendArgb(startTop, endTop, p)
-        val bottomColor = blendArgb(startBottom, endBottom, p)
-        bgPaint.shader = LinearGradient(
-            rect.left, rect.top, rect.left, rect.bottom,
-            topColor, bottomColor, Shader.TileMode.CLAMP
-        ).also {
-            bgPaint.alpha = alpha
-        }
-
-        val cx = rect.centerX()
-        val cy = rect.centerY()
-        canvas.save()
-        canvas.translate(cx, cy)
-        canvas.scale(scale, scale)
-        canvas.translate(-cx, -cy)
+        bgPaint.color = blendArgb(startColor, endColor, p)
+        bgPaint.alpha = (255 * (0.92f + 0.08f * p)).toInt()
         canvas.drawRoundRect(rect, radius, radius, bgPaint)
+
+        val dst = dstLayout ?: return
+        val textAlpha = (255 * p).toInt()
+        val oldAlpha = textPaint.alpha
+        textPaint.alpha = textAlpha
         canvas.save()
-        val src = srcLayout
-        val dst = dstLayout
-        val alphaProgress = p.coerceIn(0f, 1f)
-        if (src != null) {
-            canvas.save()
-            canvas.translate(rect.left + paddingH, rect.top + paddingV)
-            val oldAlpha = textPaint.alpha
-            textPaint.alpha = (oldAlpha * (1f - alphaProgress)).toInt()
-            src.draw(canvas)
-            textPaint.alpha = oldAlpha
-            canvas.restore()
-        }
-        if (dst != null) {
-            canvas.save()
-            canvas.translate(rect.left + paddingH, rect.top + paddingV)
-            val oldAlpha = bubbleTextPaint.alpha
-            bubbleTextPaint.alpha = (255 * alphaProgress).toInt()
-            dst.draw(canvas)
-            bubbleTextPaint.alpha = oldAlpha
-            canvas.restore()
-        }
+        canvas.translate(rect.left + paddingH, rect.top + paddingV)
+        dst.draw(canvas)
         canvas.restore()
-        canvas.restore()
+        textPaint.alpha = oldAlpha
 
         if (t >= 1f) {
-            bgPaint.shader = null
             finished = true
         }
     }
 
     override fun isFinished(): Boolean = finished
+
+    override fun onFinished() {
+        sourceView.alpha = 1f
+        targetView.alpha = targetAlphaBackup
+    }
 
     private fun blendArgb(c1: Int, c2: Int, f: Float): Int {
         val rf = f.coerceIn(0f, 1f)

@@ -4,6 +4,8 @@
         <activity
             android:name="com.alex.tg.TelegramBubbleActivity"
             android:exported="false" />
+        <activity
+            android:name="com.alex.tg.TelegramChatDetailActivity"
+            android:exported="false" />
     </application>
 </manifest>
-

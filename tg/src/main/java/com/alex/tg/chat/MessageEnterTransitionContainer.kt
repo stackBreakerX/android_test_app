@@ -27,13 +27,19 @@ class MessageEnterTransitionContainer @JvmOverloads constructor(
         }
         drawing = true
         var anyAlive = false
+        val finished = mutableListOf<SimpleEnterTransition>()
         transitions.forEach { tr ->
             tr.onDraw(canvas)
             if (!tr.isFinished()) {
                 anyAlive = true
+            } else {
+                finished.add(tr)
             }
         }
-        transitions.removeAll { it.isFinished() }
+        if (finished.isNotEmpty()) {
+            transitions.removeAll(finished)
+            finished.forEach { it.onFinished() }
+        }
         drawing = false
         if (anyAlive) {
             postInvalidateOnAnimation()
@@ -52,5 +58,6 @@ abstract class SimpleEnterTransition {
     protected open fun onStart() {}
     abstract fun onDraw(canvas: Canvas)
     abstract fun isFinished(): Boolean
+    open fun onFinished() {}
 }
 

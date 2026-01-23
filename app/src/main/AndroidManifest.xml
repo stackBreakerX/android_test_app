@@ -46,6 +46,12 @@
             android:name=".module_view.FullTextActivity"
             android:exported="false" />
         <activity
+            android:name=".chatlite.ChatActivityLite"
+            android:exported="false" />
+        <activity
+            android:name=".chat_tg.TgTextChatActivity"
+            android:exported="false" />
+        <activity
             android:name=".module_coroutine.FlowActivity"
             android:exported="false" />
         <activity

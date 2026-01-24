@@ -52,7 +52,8 @@ class TextContentView @JvmOverloads constructor(
         TgTheme.init(resources.displayMetrics.density)
         val maxWidth = MeasureSpec.getSize(widthMeasureSpec)
         val pack = prebuiltPack
-        if (pack != null && pack.computedForWidth > 0) {
+        // 只有在未预留右侧宽度时，才直接使用预计算布局
+        if (reservedRight == 0 && pack != null && pack.computedForWidth > 0) {
             blocks = pack.blocks
             contentWidth = pack.contentWidth
             setMeasuredDimension(pack.contentWidth, pack.height)

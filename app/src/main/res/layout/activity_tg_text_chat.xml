@@ -35,7 +35,10 @@
             android:layout_height="40dp"
             android:layout_weight="1"
             android:hint="输入消息"
-            android:background="@android:color/transparent" />
+            android:background="@android:color/transparent"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:inputType="text" />
 
         <Button
             android:id="@+id/sendButton"
@@ -43,5 +46,11 @@
             android:layout_height="40dp"
             android:layout_marginStart="6dp"
             android:text="发送" />
+        <Button
+            android:id="@+id/demoAllButton"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginStart="6dp"
+            android:text="全部" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

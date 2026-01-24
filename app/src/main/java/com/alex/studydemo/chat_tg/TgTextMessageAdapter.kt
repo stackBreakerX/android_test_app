@@ -19,6 +19,7 @@ sealed class TgMessageItem(open val id: Long) {
         val text: String,
         val fromMe: Boolean,
         val time: String,
+        val userName: String? = null,
         val quote: String? = null,
         val translation: String? = null,
         val reactions: String? = null,
@@ -90,7 +91,18 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
     class TextVH(private val cell: TgTextMessageCell) : RecyclerView.ViewHolder(cell) {
         fun bind(item: TgMessageItem.Text) {
             cell.bindMessage(item.text, item.time, item.fromMe, item.layoutPack)
-            // 额外区块：引用/翻译/点赞（分别挂到 BaseTgMessageCell 的对应位置）
+            // 用户名
+            if (item.userName.isNullOrBlank()) {
+                cell.setUserNameView(null)
+            } else {
+                val tv = android.widget.TextView(cell.context)
+                tv.text = item.userName
+                tv.textSize = 14f
+                tv.setTextColor(0xFF2E7D32.toInt())
+                tv.setTypeface(TgAndroidUtilities.bold())
+                cell.setUserNameView(tv)
+            }
+            // 额外区块：引用/翻译/点赞
             // 引用（位于内容上方）
             if (item.quote.isNullOrBlank()) {
                 cell.setReplyView(null)

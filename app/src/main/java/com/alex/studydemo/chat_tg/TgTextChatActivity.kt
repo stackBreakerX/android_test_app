@@ -53,15 +53,68 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
     private fun setupInput() {
         // 发送按钮点击：读取输入框文本，清空输入，并追加一条“我发送”的文本消息
         binding.sendButton.setOnClickListener {
-            val text = binding.inputEdit.text?.toString().orEmpty().let { if (it.isBlank()) "空消息" else it }
+            val raw = binding.inputEdit.text?.toString().orEmpty()
+            val sanitized = raw.replace("\r\n", " ").replace("\n", " ")
+            val text = if (sanitized.isBlank()) "空消息" else sanitized
             binding.inputEdit.setText("")
             addMessage(text, fromMe = true)
+        }
+        binding.demoAllButton.setOnClickListener {
+            val options = arrayOf(
+                "全部元素（用户名+引用+正文+翻译+点赞）",
+                "纯文本",
+                "用户名 + 正文",
+                "用户名 + 引用 + 正文",
+                "用户名 + 正文 + 翻译",
+                "用户名 + 引用 + 正文 + 翻译 + 点赞",
+                "图片消息",
+                "视频消息",
+                "文件消息"
+            )
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("选择要发送的内容")
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> {
+                            val text = "演示：Cell 中所有元素"
+                            items.add(makeTextItem(text, true, formatTime(nextId), "Jane Cooper", "引用内容示例", "翻译内容示例", "👍 ❤️ 🎉"))
+                        }
+                        1 -> {
+                            items.add(makeTextItem("纯文本消息", true, formatTime(nextId), null, null, null, null))
+                        }
+                        2 -> {
+                            items.add(makeTextItem("用户名+正文", true, formatTime(nextId), "Jane Cooper", null, null, null))
+                        }
+                        3 -> {
+                            items.add(makeTextItem("用户名+引用+正文", true, formatTime(nextId), "Jane Cooper", "引用内容示例", null, null))
+                        }
+                        4 -> {
+                            items.add(makeTextItem("用户名+正文+翻译", true, formatTime(nextId), "Jane Cooper", null, "翻译内容示例", null))
+                        }
+                        5 -> {
+                            items.add(makeTextItem("用户名+引用+正文+翻译+点赞", true, formatTime(nextId), "Jane Cooper", "引用内容示例", "翻译内容示例", "👍 ❤️ 🎉"))
+                        }
+                        6 -> {
+                            items.add(TgMessageItem.Image(id = nextId++, fromMe = true, time = formatTime(nextId)))
+                        }
+                        7 -> {
+                            items.add(TgMessageItem.Video(id = nextId++, fromMe = true, time = formatTime(nextId)))
+                        }
+                        8 -> {
+                            items.add(TgMessageItem.File(id = nextId++, name = "demo.txt", size = "1 KB", fromMe = true, time = formatTime(nextId)))
+                        }
+                    }
+                    adapter.submitList(items.toList()) {
+                        binding.recyclerView.scrollToPosition(adapter.itemCount - 1)
+                    }
+                }
+                .show()
         }
     }
 
     private fun seedMessages() {
         // 预置若干条不同类型的消息，便于演示多种气泡与时间布局
-        items.add(makeTextItem("这个页面只保留 TG 文本消息的渲染逻辑", false, "09:41", "Ralph Edwards", "这是翻译文本的示例", "👍 3  ❤️ 1"))
+        items.add(makeTextItem("这个页面只保留 TG 文本消息的渲染逻辑", false, "09:41", "Ralph Edwards", "引用文本示例", "这是翻译文本的示例", "👍 ❤️ 🎉"))
         items.add(
             TgMessageItem.Image(
                 id = nextId++,
@@ -85,7 +138,7 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
                 time = "09:44"
             )
         )
-        items.add(makeTextItem("发送消息在右侧显示", true, "09:45", null, null, null))
+        items.add(makeTextItem("发送消息在右侧显示", true, "09:45", null, null, null, null))
         // 使用 ListAdapter 的 submitList 提交不可变列表，触发 Diff 刷新
         adapter.submitList(items.toList())
         // 保持滚动在最新消息位置
@@ -94,7 +147,7 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
 
     private fun addMessage(text: String, fromMe: Boolean) {
         // 追加一条文本消息并触发列表刷新与滚动
-        items.add(makeTextItem(text, fromMe, formatTime(nextId), null, null, null))
+        items.add(makeTextItem(text, fromMe, formatTime(nextId), null, null, null, null))
         adapter.submitList(items.toList()) {
             binding.recyclerView.scrollToPosition(adapter.itemCount - 1)
         }
@@ -104,12 +157,13 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
         text: String,
         fromMe: Boolean,
         time: String,
+        userName: String?,
         quote: String?,
         translation: String?,
         reactions: String?
     ): TgMessageItem.Text {
         val id = nextId++
-        val hasExtra = !quote.isNullOrBlank() || !translation.isNullOrBlank() || !reactions.isNullOrBlank()
+        val hasExtra = !quote.isNullOrBlank() || !translation.isNullOrBlank() || !reactions.isNullOrBlank() || !userName.isNullOrBlank()
         if (recyclerWidth > 0) {
             schedulePrecompute(id, text, fromMe, time, hasExtra)
         }
@@ -118,6 +172,7 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
             text = text,
             fromMe = fromMe,
             time = time,
+            userName = userName,
             quote = quote,
             translation = translation,
             reactions = reactions,

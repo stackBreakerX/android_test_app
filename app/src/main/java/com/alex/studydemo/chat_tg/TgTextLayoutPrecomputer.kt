@@ -13,7 +13,9 @@ object TgTextLayoutPrecomputer {
         containerWidth: Int,
         density: Float,
         hasExtraBlock: Boolean,
-        inlineTimeWithText: Boolean = true
+        inlineTimeWithText: Boolean = true,
+        showStatus: Boolean = true,
+        statusText: String = "✓✓"
     ): TgTextLayoutPack {
         TgTheme.init(density)
         val paddingStartOut = dp(12f, density)
@@ -21,12 +23,18 @@ object TgTextLayoutPrecomputer {
         val paddingStartIn = dp(16f, density)
         val paddingEndIn = dp(12f, density)
         val timeExtraWidth = dp(10f, density)
+        val statusGap = dp(6f, density)
         val maxBubbleWidth = (containerWidth * MAX_RATIO).toInt()
         val paddingStart = if (fromMe) paddingStartOut else paddingStartIn
         val paddingEnd = if (fromMe) paddingEndOut else paddingEndIn
         val contentMaxWidth = maxBubbleWidth - (paddingStart + paddingEnd)
         val tPaint = timePaint(fromMe)
         val tWidth = tPaint.measureText(time).toInt()
+        val statusPaint = TextPaint(TextPaint.ANTI_ALIAS_FLAG).apply {
+            textSize = dp(13f, density).toFloat()
+        }
+        val statusWidth = if (showStatus) statusPaint.measureText(statusText).toInt() else 0
+        val statusReserve = if (showStatus && statusWidth > 0) statusWidth + statusGap else 0
         var reservedRight = 0
         var doInline = inlineTimeWithText
         if (hasExtraBlock && doInline) {
@@ -39,9 +47,9 @@ object TgTextLayoutPrecomputer {
             val lastLine = last.textLayout.lineCount - 1
             lastLineWidth = if (lastLine >= 0) last.textLayout.getLineRight(lastLine).toInt() else 0
         }
-        val canInline = doInline && lastLineWidth + timeExtraWidth + tWidth <= contentMaxWidth
+        val canInline = doInline && lastLineWidth + timeExtraWidth + tWidth + statusReserve <= contentMaxWidth
         if (canInline) {
-            reservedRight = tWidth + timeExtraWidth
+            reservedRight = tWidth + timeExtraWidth + statusReserve
         }
         val available = (contentMaxWidth - reservedRight).coerceAtLeast(1)
         val blocks = TgTextLayoutBuilder.buildBlocks(text, TgTheme.chatMsgTextPaint, available)

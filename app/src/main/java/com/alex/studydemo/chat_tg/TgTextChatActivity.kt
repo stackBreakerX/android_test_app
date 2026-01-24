@@ -45,6 +45,8 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
         binding.recyclerView.adapter = adapter
         // 使用 TG 风格的 ItemAnimator，统一入场/移动节奏
         binding.recyclerView.itemAnimator = TgTextItemAnimator()
+        // 头像装饰器：非自己消息显示头像，同一分组只显示一个
+        binding.recyclerView.addItemDecoration(AvatarGroupDecoration(adapter))
         binding.recyclerView.post {
             recyclerWidth = binding.recyclerView.width
         }

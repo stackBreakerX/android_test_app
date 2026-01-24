@@ -1,12 +1,16 @@
 package com.alex.studydemo.chat_tg
 
 import android.content.Context
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.graphics.Canvas
 import android.graphics.RectF
 import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.PathInterpolator
 import kotlin.math.max
 
 /**
@@ -31,7 +35,11 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
 
     // 气泡区域与绘制器
     private val bubbleRect = RectF()
+    private val lastBubbleRect = RectF()
+    private val drawBubbleRect = RectF()
     private var bubbleDrawable: TgMessageDrawable = TgMessageDrawable(true)
+    private val transitionParams = TransitionParams()
+    private var transitionAnimator: ValueAnimator? = null
 
     // TG 文本气泡内边距与时间布局参数
     private val paddingStartOut = dp(12f)
@@ -215,6 +223,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        val oldRect = RectF(lastBubbleRect)
         val width = width.toFloat()
         val timePaint = if (fromMe) timePaintOut else timePaintIn
         val maxBubbleWidth = (width * maxBubbleWidthRatio).toInt()
@@ -242,6 +251,16 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         val left = if (fromMe) width - bubbleWidth - dpF(8f) else dpF(8f)
         val top = dpF(6f)
         bubbleRect.set(left, top, left + bubbleWidth, top + bubbleHeight)
+        if (transitionParams.awaitingLayout) {
+            if (oldRect.isEmpty) {
+                transitionParams.startRect.set(bubbleRect)
+            } else {
+                transitionParams.startRect.set(oldRect)
+            }
+            transitionParams.endRect.set(bubbleRect)
+            transitionParams.awaitingLayout = false
+        }
+        lastBubbleRect.set(bubbleRect)
 
         // 1) 顶部：用户名
         var cy = (bubbleRect.top + paddingTop).toInt()
@@ -282,11 +301,12 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     }
 
     private fun drawBubble(canvas: Canvas) {
+        val rect = getDrawBubbleRect(drawBubbleRect)
         bubbleDrawable.bounds = android.graphics.Rect(
-            bubbleRect.left.toInt(),
-            bubbleRect.top.toInt(),
-            bubbleRect.right.toInt(),
-            bubbleRect.bottom.toInt()
+            rect.left.toInt(),
+            rect.top.toInt(),
+            rect.right.toInt(),
+            rect.bottom.toInt()
         )
         bubbleDrawable.draw(canvas)
     }
@@ -295,27 +315,41 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         val timePaint = if (fromMe) timePaintOut else timePaintIn
         val timeWidthF = timePaint.measureText(timeText)
         val statusWidthF = if (showStatus) statusPaint.measureText(statusText) else 0f
-        val lastBaseline = contentAsTg.getLastLineBaseline()?.let { it + bubbleRect.top + paddingTop }
-        val contentWidth = bubbleRect.width() - getPaddingStartLocal() - getPaddingEndLocal()
+        val rect = getDrawBubbleRect(drawBubbleRect)
+        val lastBaseline = contentAsTg.getLastLineBaseline()?.let { it + rect.top + paddingTop }
+        val contentWidth = rect.width() - getPaddingStartLocal() - getPaddingEndLocal()
         val lastLineWidth = contentAsTg.getLastLineWidth().toFloat()
         val inlineAllowed = inlineTimeWithText && timeInline &&
             lastLineWidth + timeExtraWidth + timeWidthF + (if (showStatus) statusWidthF + statusGap else 0f) <= contentWidth + 0.5f
         // 时间与消息状态均右下角对齐：最右为状态，左侧为时间
-        val timeX = bubbleRect.right - getPaddingEndLocal().toFloat() - (if (showStatus) statusWidthF + statusGap else 0f) - timeWidthF
+        val timeX = rect.right - getPaddingEndLocal().toFloat() - (if (showStatus) statusWidthF + statusGap else 0f) - timeWidthF
         var timeY = if (inlineAllowed) {
             // 行内时间：基线略低于末行
-            timeAnchor.getTimeY(bubbleRect, lastBaseline, timePaint, paddingBottom.toFloat())
+            timeAnchor.getTimeY(rect, lastBaseline, timePaint, paddingBottom.toFloat())
         } else {
             // 行内条件不满足时，按底部时间行绘制避免重叠
-            TgTimeAnchorBottomRight.getTimeY(bubbleRect, lastBaseline, timePaint, paddingBottom.toFloat())
+            TgTimeAnchorBottomRight.getTimeY(rect, lastBaseline, timePaint, paddingBottom.toFloat())
         }
+        val alphaFactor = if (transitionParams.isRunning &&
+            (transitionParams.payloads.contains(TgMessagePayloads.TIME) ||
+                transitionParams.payloads.contains(TgMessagePayloads.LAYOUT))) {
+            transitionParams.animateChangeProgress
+        } else {
+            1f
+        }
+        val baseTimeAlpha = timePaint.alpha
+        val baseStatusAlpha = statusPaint.alpha
+        timePaint.alpha = (baseTimeAlpha * alphaFactor).toInt().coerceIn(0, 255)
+        statusPaint.alpha = (baseStatusAlpha * alphaFactor).toInt().coerceIn(0, 255)
         canvas.drawText(timeText, timeX, timeY, timePaint)
         // 绘制消息状态（紧随时间右侧）
         if (showStatus && statusWidthF > 0f) {
-            val statusX = bubbleRect.right - getPaddingEndLocal().toFloat() - statusWidthF
+            val statusX = rect.right - getPaddingEndLocal().toFloat() - statusWidthF
             val statusY = timeY
             canvas.drawText(statusText, statusX, statusY, statusPaint)
         }
+        timePaint.alpha = baseTimeAlpha
+        statusPaint.alpha = baseStatusAlpha
     }
 
     /** 可选子 View 测量（为空返回 0，高度用于累加） */
@@ -332,4 +366,86 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
 
     protected fun dp(value: Float): Int = (value * resources.displayMetrics.density).toInt()
     protected fun dpF(value: Float): Float = TgAndroidUtilities.dpF(value, resources.displayMetrics.density)
+
+    /** 启动基于 Diff payload 的过渡动画 */
+    fun runTransition(payloads: Set<String>) {
+        transitionAnimator?.cancel()
+        transitionParams.payloads = payloads
+        transitionParams.animateChangeProgress = 0f
+        transitionParams.isRunning = true
+        transitionParams.awaitingLayout = true
+        requestLayout()
+        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 220L
+            interpolator = PathInterpolator(0.2f, 0f, 0.2f, 1f)
+            addUpdateListener {
+                val progress = it.animatedValue as Float
+                transitionParams.animateChangeProgress = progress
+                applyExtraViewProgress(payloads, progress)
+                invalidate()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationCancel(animation: Animator) {
+                    finishTransition()
+                }
+
+                override fun onAnimationEnd(animation: Animator) {
+                    finishTransition()
+                }
+            })
+        }
+        transitionAnimator = animator
+        animator.start()
+    }
+
+    private fun finishTransition() {
+        transitionParams.animateChangeProgress = 1f
+        transitionParams.isRunning = false
+        applyExtraViewProgress(transitionParams.payloads, 1f)
+        transitionAnimator = null
+        invalidate()
+    }
+
+    private fun applyExtraViewProgress(payloads: Set<String>, progress: Float) {
+        val offset = dpF(4f) * (1f - progress)
+        if (payloads.contains(TgMessagePayloads.USER_NAME)) {
+            userNameView?.apply { alpha = progress; translationY = offset }
+        }
+        if (payloads.contains(TgMessagePayloads.QUOTE)) {
+            replyView?.apply { alpha = progress; translationY = offset }
+        }
+        if (payloads.contains(TgMessagePayloads.TRANSLATION)) {
+            translateView?.apply { alpha = progress; translationY = offset }
+        }
+        if (payloads.contains(TgMessagePayloads.REACTIONS)) {
+            liveView?.apply { alpha = progress; translationY = offset }
+        }
+    }
+
+    private fun getDrawBubbleRect(out: RectF): RectF {
+        if (transitionParams.isRunning && !transitionParams.startRect.isEmpty && !transitionParams.endRect.isEmpty) {
+            val p = transitionParams.animateChangeProgress
+            out.set(
+                lerp(transitionParams.startRect.left, transitionParams.endRect.left, p),
+                lerp(transitionParams.startRect.top, transitionParams.endRect.top, p),
+                lerp(transitionParams.startRect.right, transitionParams.endRect.right, p),
+                lerp(transitionParams.startRect.bottom, transitionParams.endRect.bottom, p)
+            )
+        } else {
+            out.set(bubbleRect)
+        }
+        return out
+    }
+
+    private fun lerp(start: Float, end: Float, progress: Float): Float = start + (end - start) * progress
+}
+
+/** 气泡过渡参数（简化版，用于驱动插值动画） */
+class TransitionParams {
+    var animateChangeProgress: Float = 1f
+    var isRunning: Boolean = false
+    var awaitingLayout: Boolean = false
+    var payloads: Set<String> = emptySet()
+    val startRect: RectF = RectF()
+    val endRect: RectF = RectF()
 }

@@ -88,7 +88,31 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
         }
     }
 
-    class TextVH(private val cell: TgTextMessageCell) : RecyclerView.ViewHolder(cell) {
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isEmpty()) {
+            onBindViewHolder(holder, position)
+            return
+        }
+        when (val item = getItem(position)) {
+            is TgMessageItem.Text -> {
+                val textHolder = holder as TextVH
+                textHolder.bind(item)
+                val payloadSet = mutableSetOf<String>()
+                for (payload in payloads) {
+                    when (payload) {
+                        is Set<*> -> payload.filterIsInstance<String>().forEach { payloadSet.add(it) }
+                        is String -> payloadSet.add(payload)
+                    }
+                }
+                if (payloadSet.isNotEmpty()) {
+                    textHolder.cell.runTransition(payloadSet)
+                }
+            }
+            else -> onBindViewHolder(holder, position)
+        }
+    }
+
+    class TextVH(val cell: TgTextMessageCell) : RecyclerView.ViewHolder(cell) {
         fun bind(item: TgMessageItem.Text) {
             cell.bindMessage(item.text, item.time, item.fromMe, item.layoutPack)
             // 用户名
@@ -157,5 +181,19 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
         /** 判断内容是否相同：数据类的 equals 即可 */
         override fun areContentsTheSame(oldItem: TgMessageItem, newItem: TgMessageItem): Boolean =
             oldItem == newItem
+
+        override fun getChangePayload(oldItem: TgMessageItem, newItem: TgMessageItem): Any? {
+            if (oldItem !is TgMessageItem.Text || newItem !is TgMessageItem.Text) return null
+            val payloads = mutableSetOf<String>()
+            if (oldItem.text != newItem.text) payloads.add(TgMessagePayloads.TEXT)
+            if (oldItem.userName != newItem.userName) payloads.add(TgMessagePayloads.USER_NAME)
+            if (oldItem.quote != newItem.quote) payloads.add(TgMessagePayloads.QUOTE)
+            if (oldItem.translation != newItem.translation) payloads.add(TgMessagePayloads.TRANSLATION)
+            if (oldItem.reactions != newItem.reactions) payloads.add(TgMessagePayloads.REACTIONS)
+            if (oldItem.time != newItem.time) payloads.add(TgMessagePayloads.TIME)
+            if (oldItem.fromMe != newItem.fromMe) payloads.add(TgMessagePayloads.LAYOUT)
+            if (oldItem.layoutPack != newItem.layoutPack) payloads.add(TgMessagePayloads.LAYOUT)
+            return if (payloads.isEmpty()) null else payloads
+        }
     }
 }

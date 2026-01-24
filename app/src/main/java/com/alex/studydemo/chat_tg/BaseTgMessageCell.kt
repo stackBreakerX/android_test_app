@@ -309,12 +309,6 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             // 行内条件不满足时，按底部时间行绘制避免重叠
             TgTimeAnchorBottomRight.getTimeY(bubbleRect, lastBaseline, timePaint, paddingBottom.toFloat())
         }
-        // 若底部存在 LiveView，则避免遮挡：时间上移到 LiveView 之上
-        liveView?.let { child ->
-            if (timeY + timePaint.descent() > child.top) {
-                timeY = child.top - dpF(2f)
-            }
-        }
         canvas.drawText(timeText, timeX, timeY, timePaint)
         // 绘制消息状态（紧随时间右侧）
         if (showStatus && statusWidthF > 0f) {

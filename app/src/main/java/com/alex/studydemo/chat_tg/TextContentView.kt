@@ -66,6 +66,8 @@ class TextContentView @JvmOverloads constructor(
     private var crossfadeProgress: Float = 1f
     /** Crossfade 动画器 */
     private var crossfadeAnimator: ValueAnimator? = null
+    /** 缩短动画：新文本从一开始就可见，仅旧文本淡出 */
+    private var crossfadeNewAlwaysVisible: Boolean = false
 
     /** 启动文本 crossfade 动画 */
     private fun startCrossfade(newText: String) {
@@ -79,6 +81,7 @@ class TextContentView @JvmOverloads constructor(
         post {
             // 确保 layout 完成后再获取新 blocks
             animateInBlocks = blocks.toList()
+            crossfadeNewAlwaysVisible = false
             crossfadeProgress = 0f
             crossfadeAnimator?.cancel()
             crossfadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
@@ -116,6 +119,9 @@ class TextContentView @JvmOverloads constructor(
                 // 如果没有 pack，使用当前 blocks
                 animateInBlocks = blocks.toList()
             }
+            val oldH = animateOutBlocks.sumOf { it.height + it.padTop + it.padBottom }
+            val newH = animateInBlocks.sumOf { it.height + it.padTop + it.padBottom }
+            crossfadeNewAlwaysVisible = newH <= oldH
             crossfadeProgress = 0f
             crossfadeAnimator?.cancel()
             crossfadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
@@ -219,7 +225,7 @@ class TextContentView @JvmOverloads constructor(
         // 如果正在 crossfade 动画，同时绘制旧文本（淡出）和新文本（淡入）
         if (crossfadeProgress < 1f && animateOutBlocks.isNotEmpty() && animateInBlocks.isNotEmpty()) {
             val oldAlpha = (255 * (1f - crossfadeProgress)).toInt().coerceIn(0, 255)
-            val newAlpha = (255 * crossfadeProgress).toInt().coerceIn(0, 255)
+            val newAlpha = if (crossfadeNewAlwaysVisible) 255 else (255 * crossfadeProgress).toInt().coerceIn(0, 255)
             
             // 绘制旧文本（淡出）
             if (oldAlpha > 0) {

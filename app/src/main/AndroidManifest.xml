@@ -125,11 +125,6 @@
         <activity
             android:name=".module_performance.JankStatsActivity"
             android:exported="false" />
-
-        <activity
-            android:name=".chat_tg.TgTextChatActivity"
-            android:exported="false" />
-
         <!-- FileProvider 配置 -->
         <provider
             android:name="androidx.core.content.FileProvider"

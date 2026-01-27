@@ -549,16 +549,16 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
 
     private fun getDrawBubbleRect(out: RectF): RectF {
         // 只有在动画运行且 startRect 和 endRect 都有效时才插值
-        if (transitionParams.isRunning && 
+        if (transitionParams.isRunning &&
             transitionParams.startRect.width() > 0 && transitionParams.startRect.height() > 0 &&
             transitionParams.endRect.width() > 0 && transitionParams.endRect.height() > 0) {
             val p = transitionParams.animateChangeProgress
-            out.set(
-                lerp(transitionParams.startRect.left, transitionParams.endRect.left, p),
-                lerp(transitionParams.startRect.top, transitionParams.endRect.top, p),
-                lerp(transitionParams.startRect.right, transitionParams.endRect.right, p),
-                lerp(transitionParams.startRect.bottom, transitionParams.endRect.bottom, p)
-            )
+            val start = transitionParams.startRect
+            val end = transitionParams.endRect
+            val w = lerp(start.width(), end.width(), p)
+            val h = lerp(start.height(), end.height(), p)
+            // 锚定顶部，只向下扩展，避免影响上方间隔
+            out.set(start.left, start.top, start.left + w, start.top + h)
         } else {
             // 动画未运行或数据无效时，使用当前 rect
             out.set(bubbleRect)

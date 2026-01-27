@@ -235,9 +235,8 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
                 transitionParams.animateChangeProgress < 1f
         
         val predictedIncreasing = transitionParams.startRect.height() > 0f && bubbleHeight > transitionParams.startRect.height().toInt()
-        val increasing = (transitionParams.endRect.height() > transitionParams.startRect.height()) || predictedIncreasing
         val inTransition = transitionParams.awaitingLayout || animatingBackground
-        val measuredHeight = if (inTransition && increasing && transitionParams.startRect.height() > 0f) {
+        val measuredHeight = if (inTransition && transitionParams.startRect.height() > 0f) {
             (transitionParams.startRect.height() + dpF(12f)).toInt()
         } else {
             totalHeight
@@ -398,8 +397,10 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         val lastBaseline = contentAsTg.getLastLineBaseline()?.let { it + rect.top + paddingTop }
         val contentWidth = rect.width() - getPaddingStartLocal() - getPaddingEndLocal()
         val lastLineWidth = contentAsTg.getLastLineWidth().toFloat()
-        val inlineAllowed = inlineTimeWithText && timeInline &&
+        val inlineAllowedBase = inlineTimeWithText && timeInline &&
             lastLineWidth + timeExtraWidth + timeWidthF + (if (showStatus) statusWidthF + statusGap else 0f) <= contentWidth + 0.5f
+        val forceBottomDuringAnimation = transitionParams.isRunning && timeWrapped
+        val inlineAllowed = if (forceBottomDuringAnimation) false else inlineAllowedBase
         // 时间与消息状态均右下角对齐：最右为状态，左侧为时间
         val timeX = rect.right - getPaddingEndLocal().toFloat() - (if (showStatus) statusWidthF + statusGap else 0f) - timeWidthF
         var timeY = if (inlineAllowed) {

@@ -62,6 +62,21 @@ class TgMessageDrawable(private var out: Boolean) : Drawable() {
         canvas.drawPath(path, strokePaint)
     }
 
+    /** 返回当前 bounds 对应的气泡路径，用于裁剪内容区域 */
+    fun buildClipPath(): Path {
+        val b = bounds
+        val p = Path()
+        val padding = dp(2f)
+        val rad = dp(TgSharedConfig.bubbleRadius.toFloat())
+        val nearRad = dp(minOf(6, TgSharedConfig.bubbleRadius).toFloat())
+        val smallRad = dp(6f)
+        val top = max(b.top, 0)
+        val drawFullBottom = true
+        val drawFullTop = true
+        generatePath(p, b, padding, rad, smallRad, nearRad, top, drawFullBottom, drawFullTop)
+        return p
+    }
+
     override fun setAlpha(alpha: Int) {
         paint.alpha = alpha
         strokePaint.alpha = alpha

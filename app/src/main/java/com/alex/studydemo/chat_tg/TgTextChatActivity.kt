@@ -74,8 +74,8 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
             stackFromEnd = true
         }
         binding.recyclerView.adapter = adapter
-        // 使用 TG 风格的 ItemAnimator，统一入场/移动节奏
-        binding.recyclerView.itemAnimator = TgTextItemAnimator()
+        // 使用与 ChatActivity 对齐的列表项动画
+        binding.recyclerView.itemAnimator = TgChatListItemAnimator()
         // 头像装饰器：非自己消息显示头像，同一分组只显示一个
         binding.recyclerView.addItemDecoration(AvatarGroupDecoration(adapter))
         val density = resources.displayMetrics.density
@@ -309,15 +309,7 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
                     val old = items[idx] as TgMessageItem.Text
                     val updated = old.copy(text = text, layoutPack = pack)
                     items[idx] = updated
-                    // 编辑动画期间暂时禁用列表 ItemAnimator，避免邻居项在过渡帧被推动
-                    val prevAnimator = binding.recyclerView.itemAnimator
-                    binding.recyclerView.itemAnimator = null
-                    adapter.submitList(items.toList()) {
-                        // 恢复 ItemAnimator（与 BaseTgMessageCell 的内部过渡时长对齐）
-                        binding.recyclerView.postDelayed({
-                            binding.recyclerView.itemAnimator = prevAnimator
-                        }, 260)
-                    }
+                    adapter.submitList(items.toList())
                 }
             }
         }

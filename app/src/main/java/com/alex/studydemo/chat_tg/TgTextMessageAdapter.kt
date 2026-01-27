@@ -56,6 +56,10 @@ class TgTextMessageAdapter(
     private val onTextMessageClick: ((TgMessageItem.Text, android.view.View) -> Unit)? = null
 ) : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>(Diff) {
 
+    init {
+        setHasStableIds(true)
+    }
+
     companion object {
         /** 四类消息类型常量 */
         private const val TYPE_TEXT = 1
@@ -80,6 +84,8 @@ class TgTextMessageAdapter(
             else -> TextVH(TgTextMessageCell(parent.context), onTextMessageClick)
         }
     }
+
+    override fun getItemId(position: Int): Long = getItem(position).id
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = getItem(position)) {

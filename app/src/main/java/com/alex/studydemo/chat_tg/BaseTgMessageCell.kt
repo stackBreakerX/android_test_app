@@ -234,14 +234,16 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
                 transitionParams.endRect.height() > 0f &&
                 transitionParams.animateChangeProgress < 1f
         
-        // 判断是否为“变大”过程，使用 startRect 或 lastBubbleRect 作为旧高度来源
-        val startH = if (transitionParams.startRect.height() > 0f) transitionParams.startRect.height()
-            else if (lastBubbleRect.height() > 0f) lastBubbleRect.height() else 0f
-        val predictedIncreasing = startH > 0f && bubbleHeight.toFloat() > startH
-        val increasing = (transitionParams.endRect.height() > transitionParams.startRect.height()) || predictedIncreasing
-        val inTransition = transitionParams.awaitingLayout || animatingBackground
-        val measuredHeight = if (increasing && inTransition && startH > 0f) {
-            (startH + dpF(12f)).toInt()
+        val measuredHeight = if (animatingBackground) {
+            // 动画期间，始终使用 startRect 的高度（旧高度），避免推动上方气泡
+            // 这样气泡变大时，测量高度不变，只有绘制时才会显示变大效果
+            val oldTotalHeight = if (transitionParams.startRect.height() > 0f) {
+                // startRect 是气泡 rect，需要加上上下间距（6dp * 2）
+                (transitionParams.startRect.height() + dpF(12f)).toInt()
+            } else {
+                totalHeight
+            }
+            oldTotalHeight
         } else {
             totalHeight
         }
@@ -298,94 +300,69 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             lastBubbleRect.set(bubbleRect)
         }
         
-        // 在动画期间，子 view 的布局应该基于插值后的 rect，而不是 bubbleRect
-        val layoutRect = if (isAnimating) {
-            // 顶部锚定；根据消息方向决定锚点：出站对齐右边距，入站对齐左边距
-            val p = transitionParams.animateChangeProgress
-            val start = transitionParams.startRect
-            val end = transitionParams.endRect
-            val w = lerp(start.width(), end.width(), p)
-            val h = lerp(start.height(), end.height(), p)
-            val top = start.top
-            if (fromMe) {
-                // 右侧固定
-                val right = start.right
-                RectF(right - w, top, right, top + h)
-            } else {
-                // 左侧固定
-                val left = start.left
-                RectF(left, top, left + w, top + h)
-            }
-        } else {
-            bubbleRect
-        }
-        
-        var cy = (layoutRect.top + paddingTop).toInt()
-        fun anchorLeft(w: Int): Int {
-            return if (fromMe) {
-                (layoutRect.left + getPaddingStartLocal()).toInt()
-            } else {
-                (layoutRect.right - getPaddingEndLocal() - w).toInt()
-            }
-        }
+        // 参考 Telegram：文本位置固定，相对于气泡的最终位置（bubbleRect）
+        // 动画过程中只有气泡大小和时间/状态位置会变化，文本位置不变
+        // 1) 顶部：用户名
+        var cy = (bubbleRect.top + paddingTop).toInt()
+        val cx = (bubbleRect.left + getPaddingStartLocal()).toInt()
         userNameView?.let { child ->
-            val left = anchorLeft(child.measuredWidth)
-            child.layout(left, cy, left + child.measuredWidth, cy + child.measuredHeight)
+            child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
             cy += child.measuredHeight + extraSpacing
         }
+        // 2) 引用/转发
         replyView?.let { child ->
-            val left = anchorLeft(child.measuredWidth)
-            child.layout(left, cy, left + child.measuredWidth, cy + child.measuredHeight)
+            child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
             cy += child.measuredHeight + extraSpacing
         }
 
-        val actualBubbleContentWidth = (layoutRect.width() - getPaddingStartLocal() - getPaddingEndLocal()).toInt()
+        // 确保 contentView 的布局宽度不超过气泡内容宽度，防止文本溢出
+        // 使用实际的气泡内容宽度（基于 bubbleRect，这是最终布局的宽度）
+        val actualBubbleContentWidth = (bubbleRect.width() - getPaddingStartLocal() - getPaddingEndLocal()).toInt()
         val maxContentWidth = actualBubbleContentWidth.coerceAtLeast(1)
+        // 强制限制布局宽度，确保不会超出气泡边界
         val contentLayoutWidth = kotlin.math.min(contentView.measuredWidth, maxContentWidth)
-        run {
-            val left = anchorLeft(contentLayoutWidth)
-            contentView.layout(left, cy, left + contentLayoutWidth, cy + contentView.measuredHeight)
-        }
+        contentView.layout(
+            cx,
+            cy,
+            cx + contentLayoutWidth,
+            cy + contentView.measuredHeight
+        )
         cy += contentView.measuredHeight + extraSpacing
 
+        // 3) 底部：翻译
         translateView?.let { child ->
-            val left = anchorLeft(child.measuredWidth)
-            child.layout(left, cy, left + child.measuredWidth, cy + child.measuredHeight)
+            child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
         }
         // 4) LiveView 锚定气泡底部左侧
         liveView?.let { child ->
-            val ly = (layoutRect.bottom - paddingBottom - child.measuredHeight).toInt()
-            val left = (layoutRect.left + getPaddingStartLocal()).toInt()
-            child.layout(left, ly, left + child.measuredWidth, ly + child.measuredHeight)
+            val ly = (bubbleRect.bottom - paddingBottom - child.measuredHeight).toInt()
+            child.layout(cx, ly, cx + child.measuredWidth, ly + child.measuredHeight)
         }
     }
 
     override fun dispatchDraw(canvas: Canvas) {
-        // 先绘制气泡
+        // 先绘制气泡（使用动画插值后的 rect）
         drawBubble(canvas)
-        // 参考 Telegram：裁剪区域基于气泡的实际边界（bubbleRect），而不是动画插值后的 rect
-        // 这样可以确保文本始终被裁剪在气泡的实际边界内，防止溢出
+        // 获取当前过渡中的气泡绘制矩形（插值后），用于裁剪
+        val rect = getDrawBubbleRect(drawBubbleRect)
+        // 参考 Telegram：裁剪区域基于动画后的气泡边界（rect），确保文本在动画过程中被正确裁剪
         // 参考 Telegram：r.left + dp(4), r.top + dp(4), r.right - dp(10/4), r.bottom - dp(4)
         canvas.save()
         if (fromMe) {
             // 右侧消息：右边距 dp(10)（为时间/状态预留更多空间）
             canvas.clipRect(
-                bubbleRect.left + dpF(4f), bubbleRect.top + dpF(4f),
-                bubbleRect.right - dpF(10f), bubbleRect.bottom - dpF(4f)
+                rect.left + dpF(4f), rect.top + dpF(4f),
+                rect.right - dpF(10f), rect.bottom - dpF(4f)
             )
         } else {
             // 左侧消息：右边距 dp(4)
             canvas.clipRect(
-                bubbleRect.left + dpF(4f), bubbleRect.top + dpF(4f),
-                bubbleRect.right - dpF(4f), bubbleRect.bottom - dpF(4f)
+                rect.left + dpF(4f), rect.top + dpF(4f),
+                rect.right - dpF(4f), rect.bottom - dpF(4f)
             )
         }
-        // 获取当前过渡中的气泡绘制矩形（插值后），用于 translate
-        val rect = getDrawBubbleRect(drawBubbleRect)
-        // translate 使子 view 的内容对齐到动画后的位置
-        val dx = rect.left - bubbleRect.left
-        val dy = rect.top - bubbleRect.top
-        canvas.translate(dx, dy)
+        // 文本位置固定，不需要 translate
+        // 子 view 的布局位置基于 bubbleRect（最终位置），绘制时直接绘制即可
         super.dispatchDraw(canvas)
         canvas.restore()
         // 绘制时间与状态（使用过渡矩形坐标）
@@ -408,12 +385,10 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         val timeWidthF = timePaint.measureText(timeText)
         val statusWidthF = if (showStatus) statusPaint.measureText(statusText) else 0f
         val rect = getDrawBubbleRect(drawBubbleRect)
-        // 在过渡期间，为避免行内判定导致时间/状态消失，强制使用底部右对齐策略
-        val isTransition = transitionParams.isRunning
-        val lastBaseline = if (isTransition) null else contentAsTg.getLastLineBaseline()?.let { it + rect.top + paddingTop }
+        val lastBaseline = contentAsTg.getLastLineBaseline()?.let { it + rect.top + paddingTop }
         val contentWidth = rect.width() - getPaddingStartLocal() - getPaddingEndLocal()
-        val lastLineWidth = if (isTransition) 0f else contentAsTg.getLastLineWidth().toFloat()
-        val inlineAllowed = !isTransition && inlineTimeWithText && timeInline &&
+        val lastLineWidth = contentAsTg.getLastLineWidth().toFloat()
+        val inlineAllowed = inlineTimeWithText && timeInline &&
             lastLineWidth + timeExtraWidth + timeWidthF + (if (showStatus) statusWidthF + statusGap else 0f) <= contentWidth + 0.5f
         // 时间与消息状态均右下角对齐：最右为状态，左侧为时间
         val timeX = rect.right - getPaddingEndLocal().toFloat() - (if (showStatus) statusWidthF + statusGap else 0f) - timeWidthF
@@ -536,14 +511,9 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         transitionParams.startRect.setEmpty()
         transitionParams.endRect.setEmpty()
         transitionAnimator = null
-        // 动画结束后，如果最终高度与起始高度不同，则申请一次布局以应用最终高度
-        val startH = transitionParams.startRect.height()
-        val endH = transitionParams.endRect.height()
-        if (endH > 0f && startH != endH) {
-            requestLayout()
-        } else {
-            invalidate()
-        }
+        // 动画结束后，重新布局以确保子 view 位置正确
+        requestLayout()
+        invalidate()
     }
 
     private fun applyExtraViewProgress(payloads: Set<String>, progress: Float) {
@@ -564,22 +534,16 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
 
     private fun getDrawBubbleRect(out: RectF): RectF {
         // 只有在动画运行且 startRect 和 endRect 都有效时才插值
-        if (transitionParams.isRunning &&
+        if (transitionParams.isRunning && 
             transitionParams.startRect.width() > 0 && transitionParams.startRect.height() > 0 &&
             transitionParams.endRect.width() > 0 && transitionParams.endRect.height() > 0) {
             val p = transitionParams.animateChangeProgress
-            val start = transitionParams.startRect
-            val end = transitionParams.endRect
-            val w = lerp(start.width(), end.width(), p)
-            val h = lerp(start.height(), end.height(), p)
-            val top = start.top
-            if (fromMe) {
-                val right = start.right
-                out.set(right - w, top, right, top + h)
-            } else {
-                val left = start.left
-                out.set(left, top, left + w, top + h)
-            }
+            out.set(
+                lerp(transitionParams.startRect.left, transitionParams.endRect.left, p),
+                lerp(transitionParams.startRect.top, transitionParams.endRect.top, p),
+                lerp(transitionParams.startRect.right, transitionParams.endRect.right, p),
+                lerp(transitionParams.startRect.bottom, transitionParams.endRect.bottom, p)
+            )
         } else {
             // 动画未运行或数据无效时，使用当前 rect
             out.set(bubbleRect)

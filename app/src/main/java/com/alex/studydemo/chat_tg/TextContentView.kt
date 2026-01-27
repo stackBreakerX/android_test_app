@@ -219,12 +219,8 @@ class TextContentView @JvmOverloads constructor(
         // 如果正在 crossfade 动画，同时绘制旧文本（淡出）和新文本（淡入）
         if (crossfadeProgress < 1f && animateOutBlocks.isNotEmpty() && animateInBlocks.isNotEmpty()) {
             val oldAlpha = (255 * (1f - crossfadeProgress)).toInt().coerceIn(0, 255)
-            // 缩短时新文本一开始就可见，延长时新文本淡入
-            val newAlpha = if (crossfadeNewAlwaysVisible) {
-                255 // 缩短时新文本始终完全可见
-            } else {
-                (255 * crossfadeProgress).toInt().coerceIn(0, 255) // 延长时新文本淡入
-            }
+            // 新文本淡入
+            val newAlpha = (255 * crossfadeProgress).toInt().coerceIn(0, 255)
             
             // 绘制新文本（先绘制，作为底层）
             if (newAlpha > 0) {

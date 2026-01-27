@@ -231,8 +231,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         // 参考 Telegram：动画期间保持测量高度不变，只通过绘制插值来显示变化
         // 包括 awaitingLayout 期间，也应该使用旧高度，避免在动画开始前就改变高度
         val animatingBackground = (transitionParams.isRunning || transitionParams.awaitingLayout) &&
-                transitionParams.startRect.height() > 0f &&
-                transitionParams.endRect.height() > 0f
+                transitionParams.startRect.height() > 0f
         
         val measuredHeight = if (animatingBackground) {
             // 动画期间，始终使用 startRect 的高度（旧高度），避免推动上方气泡

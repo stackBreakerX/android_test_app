@@ -320,24 +320,19 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             bubbleRect
         }
         
-        // 1) 顶部：用户名（根据方向决定左/右对齐）
+        // 1) 顶部：用户名
         var cy = (layoutRect.top + paddingTop).toInt()
-        fun anchorX(childWidth: Int): Int {
-            return if (fromMe) {
-                (layoutRect.right - getPaddingEndLocal() - childWidth).toInt()
-            } else {
-                (layoutRect.left + getPaddingStartLocal()).toInt()
-            }
-        }
+        val cxStart = (layoutRect.left + getPaddingStartLocal()).toInt()
+        val cxEnd = (layoutRect.right - getPaddingEndLocal() - contentView.measuredWidth).toInt()
         userNameView?.let { child ->
-            val ax = anchorX(child.measuredWidth)
-            child.layout(ax, cy, ax + child.measuredWidth, cy + child.measuredHeight)
+            val left = if (fromMe) (layoutRect.right - getPaddingEndLocal() - child.measuredWidth).toInt() else cxStart
+            child.layout(left, cy, left + child.measuredWidth, cy + child.measuredHeight)
             cy += child.measuredHeight + extraSpacing
         }
-        // 2) 引用/转发（方向对齐）
+        // 2) 引用/转发
         replyView?.let { child ->
-            val ax = anchorX(child.measuredWidth)
-            child.layout(ax, cy, ax + child.measuredWidth, cy + child.measuredHeight)
+            val left = if (fromMe) (layoutRect.right - getPaddingEndLocal() - child.measuredWidth).toInt() else cxStart
+            child.layout(left, cy, left + child.measuredWidth, cy + child.measuredHeight)
             cy += child.measuredHeight + extraSpacing
         }
 
@@ -347,25 +342,20 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         val maxContentWidth = actualBubbleContentWidth.coerceAtLeast(1)
         // 强制限制布局宽度，确保不会超出气泡边界
         val contentLayoutWidth = kotlin.math.min(contentView.measuredWidth, maxContentWidth)
-        val contentAx = anchorX(contentView.measuredWidth)
-        contentView.layout(
-            contentAx,
-            cy,
-            contentAx + contentView.measuredWidth,
-            cy + contentView.measuredHeight
-        )
+        val contentLeft = if (fromMe) cxEnd else cxStart
+        contentView.layout(contentLeft, cy, contentLeft + contentLayoutWidth, cy + contentView.measuredHeight)
         cy += contentView.measuredHeight + extraSpacing
 
         // 3) 底部：翻译
         translateView?.let { child ->
-            val ax = anchorX(child.measuredWidth)
-            child.layout(ax, cy, ax + child.measuredWidth, cy + child.measuredHeight)
+            val left = if (fromMe) (layoutRect.right - getPaddingEndLocal() - child.measuredWidth).toInt() else cxStart
+            child.layout(left, cy, left + child.measuredWidth, cy + child.measuredHeight)
         }
         // 4) LiveView 锚定气泡底部左侧
         liveView?.let { child ->
             val ly = (layoutRect.bottom - paddingBottom - child.measuredHeight).toInt()
-            val ax = anchorX(child.measuredWidth)
-            child.layout(ax, ly, ax + child.measuredWidth, ly + child.measuredHeight)
+            val left = if (fromMe) cxStart else cxStart
+            child.layout(left, ly, left + child.measuredWidth, ly + child.measuredHeight)
         }
     }
 

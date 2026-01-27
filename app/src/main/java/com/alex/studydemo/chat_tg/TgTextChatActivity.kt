@@ -78,6 +78,8 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
         binding.recyclerView.itemAnimator = TgTextItemAnimator()
         // 头像装饰器：非自己消息显示头像，同一分组只显示一个
         binding.recyclerView.addItemDecoration(AvatarGroupDecoration(adapter))
+        val density = resources.displayMetrics.density
+        binding.recyclerView.addItemDecoration(ChatVerticalSpaceDecoration((6f * density).toInt()))
         binding.recyclerView.post {
             recyclerWidth = binding.recyclerView.width
         }

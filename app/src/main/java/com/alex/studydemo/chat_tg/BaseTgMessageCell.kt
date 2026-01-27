@@ -234,7 +234,8 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
                 transitionParams.endRect.height() > 0f &&
                 transitionParams.animateChangeProgress < 1f
         
-        val increasing = transitionParams.endRect.height() > transitionParams.startRect.height()
+        val predictedIncreasing = transitionParams.startRect.height() > 0f && bubbleHeight > transitionParams.startRect.height().toInt()
+        val increasing = (transitionParams.endRect.height() > transitionParams.startRect.height()) || predictedIncreasing
         val inTransition = transitionParams.awaitingLayout || animatingBackground
         val measuredHeight = if (inTransition && increasing && transitionParams.startRect.height() > 0f) {
             (transitionParams.startRect.height() + dpF(12f)).toInt()
@@ -520,8 +521,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         transitionParams.startRect.setEmpty()
         transitionParams.endRect.setEmpty()
         transitionAnimator = null
-        // 动画结束后，重新布局以确保子 view 位置正确
-        requestLayout()
+        // 避免在动画结束时触发额外的布局，防止文本闪烁
         invalidate()
     }
 

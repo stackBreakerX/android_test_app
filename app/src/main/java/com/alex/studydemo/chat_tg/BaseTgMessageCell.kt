@@ -300,14 +300,22 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         
         // 在动画期间，子 view 的布局应该基于插值后的 rect，而不是 bubbleRect
         val layoutRect = if (isAnimating) {
-            // 使用插值后的 rect 进行布局
+            // 顶部锚定；根据消息方向决定锚点：出站对齐右边距，入站对齐左边距
             val p = transitionParams.animateChangeProgress
-            RectF(
-                lerp(transitionParams.startRect.left, transitionParams.endRect.left, p),
-                lerp(transitionParams.startRect.top, transitionParams.endRect.top, p),
-                lerp(transitionParams.startRect.right, transitionParams.endRect.right, p),
-                lerp(transitionParams.startRect.bottom, transitionParams.endRect.bottom, p)
-            )
+            val start = transitionParams.startRect
+            val end = transitionParams.endRect
+            val w = lerp(start.width(), end.width(), p)
+            val h = lerp(start.height(), end.height(), p)
+            val top = start.top
+            if (fromMe) {
+                // 右侧固定
+                val right = start.right
+                RectF(right - w, top, right, top + h)
+            } else {
+                // 左侧固定
+                val left = start.left
+                RectF(left, top, left + w, top + h)
+            }
         } else {
             bubbleRect
         }
@@ -562,8 +570,14 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             val end = transitionParams.endRect
             val w = lerp(start.width(), end.width(), p)
             val h = lerp(start.height(), end.height(), p)
-            // 锚定顶部，只向下扩展，避免影响上方间隔
-            out.set(start.left, start.top, start.left + w, start.top + h)
+            val top = start.top
+            if (fromMe) {
+                val right = start.right
+                out.set(right - w, top, right, top + h)
+            } else {
+                val left = start.left
+                out.set(left, top, left + w, top + h)
+            }
         } else {
             // 动画未运行或数据无效时，使用当前 rect
             out.set(bubbleRect)

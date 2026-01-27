@@ -307,7 +307,7 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
                 val idx = items.indexOfFirst { it is TgMessageItem.Text && it.id == id }
                 if (idx >= 0) {
                     val old = items[idx] as TgMessageItem.Text
-                    val updated = old.copy(text = newText, layoutPack = pack)
+                    val updated = old.copy(text = text, layoutPack = pack)
                     items[idx] = updated
                     // 编辑动画期间暂时禁用列表 ItemAnimator，避免邻居项在过渡帧被推动
                     val prevAnimator = binding.recyclerView.itemAnimator

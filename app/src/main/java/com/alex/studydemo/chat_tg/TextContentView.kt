@@ -68,82 +68,86 @@ class TextContentView @JvmOverloads constructor(
     private var crossfadeAnimator: ValueAnimator? = null
     /** 缩短动画：新文本从一开始就可见，仅旧文本淡出 */
     private var crossfadeNewAlwaysVisible: Boolean = false
+    private fun blocksTotalHeight(list: List<TgTextLayoutBlock>): Int {
+        var total = 0
+        for (b in list) {
+            total += (b.height + b.padTop + b.padBottom)
+        }
+        return total
+    }
 
     /** 启动文本 crossfade 动画 */
     private fun startCrossfade(newText: String) {
         // 保存当前 blocks 作为旧文本
         animateOutBlocks = blocks.toList()
+        // 立即生成新文本的排版块，以便动画第一帧就能绘制新文本
+        val available = if (width > 0) (width - reservedRight).coerceAtLeast(1) else Int.MAX_VALUE
+        val newBlocks = TgTextLayoutBuilder.buildBlocks(newText, textPaint, available)
+        animateInBlocks = newBlocks
         // 更新文本
         messageText = newText
-        // 请求布局以计算新 blocks
-        requestLayout()
-        // 新 blocks 会在 onMeasure 后可用，延迟启动动画
-        post {
-            // 确保 layout 完成后再获取新 blocks
-            animateInBlocks = blocks.toList()
-            crossfadeNewAlwaysVisible = false
-            crossfadeProgress = 0f
-            crossfadeAnimator?.cancel()
-            crossfadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = 220L
-                interpolator = PathInterpolator(0.2f, 0f, 0.2f, 1f)
-                addUpdateListener {
-                    crossfadeProgress = it.animatedValue as Float
+        // 计算模式：缩短时新文本一开始就可见
+        val oldH = blocksTotalHeight(animateOutBlocks)
+        val newH = blocksTotalHeight(animateInBlocks)
+        crossfadeNewAlwaysVisible = newH <= oldH
+        // 启动动画
+        crossfadeProgress = 0f
+        crossfadeAnimator?.cancel()
+        crossfadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 220L
+            interpolator = PathInterpolator(0.2f, 0f, 0.2f, 1f)
+            addUpdateListener {
+                crossfadeProgress = it.animatedValue as Float
+                invalidate()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    crossfadeProgress = 1f
+                    // 动画结束后，完成新文本应用
+                    blocks = animateInBlocks
+                    animateOutBlocks = emptyList()
+                    animateInBlocks = emptyList()
                     invalidate()
                 }
-                addListener(object : AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: Animator) {
-                        crossfadeProgress = 1f
-                        // 动画结束后，blocks 已经是新的了（在 onMeasure 中已更新）
-                        animateOutBlocks = emptyList()
-                        animateInBlocks = emptyList()
-                        invalidate()
-                    }
-                })
-            }
-            crossfadeAnimator?.start()
+            })
         }
+        crossfadeAnimator?.start()
+        // 请求一次布局以更新最终尺寸（不影响第一帧新文本显示）
+        requestLayout()
     }
 
     /** 启动基于 pack 的 crossfade 动画 */
     private fun startCrossfadeWithPack(newPack: TgTextLayoutPack?) {
         animateOutBlocks = blocks.toList()
         prebuiltPack = newPack
-        requestLayout()
-        post {
-            // 确保 layout 完成后再获取新 blocks
-            if (prebuiltPack != null) {
-                // 使用 pack 中的 blocks
-                animateInBlocks = prebuiltPack!!.blocks.toList()
-            } else {
-                // 如果没有 pack，使用当前 blocks
-                animateInBlocks = blocks.toList()
+        // 立即设置新 blocks，确保第一帧就显示新文本
+        animateInBlocks = (prebuiltPack?.blocks ?: blocks).toList()
+        val oldH = blocksTotalHeight(animateOutBlocks)
+        val newH = blocksTotalHeight(animateInBlocks)
+        crossfadeNewAlwaysVisible = newH <= oldH
+        crossfadeProgress = 0f
+        crossfadeAnimator?.cancel()
+        crossfadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 220L
+            interpolator = PathInterpolator(0.2f, 0f, 0.2f, 1f)
+            addUpdateListener {
+                crossfadeProgress = it.animatedValue as Float
+                invalidate()
             }
-            val oldH = animateOutBlocks.sumOf { it.height + it.padTop + it.padBottom }
-            val newH = animateInBlocks.sumOf { it.height + it.padTop + it.padBottom }
-            crossfadeNewAlwaysVisible = newH <= oldH
-            crossfadeProgress = 0f
-            crossfadeAnimator?.cancel()
-            crossfadeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = 220L
-                interpolator = PathInterpolator(0.2f, 0f, 0.2f, 1f)
-                addUpdateListener {
-                    crossfadeProgress = it.animatedValue as Float
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    crossfadeProgress = 1f
+                    // 动画结束后，更新 blocks 为新的 blocks
+                    blocks = animateInBlocks
+                    animateOutBlocks = emptyList()
+                    animateInBlocks = emptyList()
                     invalidate()
                 }
-                addListener(object : AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: Animator) {
-                        crossfadeProgress = 1f
-                        // 动画结束后，更新 blocks 为新的 blocks
-                        blocks = animateInBlocks
-                        animateOutBlocks = emptyList()
-                        animateInBlocks = emptyList()
-                        invalidate()
-                    }
-                })
-            }
-            crossfadeAnimator?.start()
+            })
         }
+        crossfadeAnimator?.start()
+        // 请求一次布局以应用最终尺寸
+        requestLayout()
     }
 
     /** 设置为时间预留的右侧宽度（单位像素） */

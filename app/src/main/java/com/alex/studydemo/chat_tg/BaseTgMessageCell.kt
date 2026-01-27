@@ -234,16 +234,10 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
                 transitionParams.endRect.height() > 0f &&
                 transitionParams.animateChangeProgress < 1f
         
-        val measuredHeight = if (animatingBackground) {
-            // 动画期间，始终使用 startRect 的高度（旧高度），避免推动上方气泡
-            // 这样气泡变大时，测量高度不变，只有绘制时才会显示变大效果
-            val oldTotalHeight = if (transitionParams.startRect.height() > 0f) {
-                // startRect 是气泡 rect，需要加上上下间距（6dp * 2）
-                (transitionParams.startRect.height() + dpF(12f)).toInt()
-            } else {
-                totalHeight
-            }
-            oldTotalHeight
+        val increasing = transitionParams.endRect.height() > transitionParams.startRect.height()
+        val inTransition = transitionParams.awaitingLayout || animatingBackground
+        val measuredHeight = if (inTransition && increasing && transitionParams.startRect.height() > 0f) {
+            (transitionParams.startRect.height() + dpF(12f)).toInt()
         } else {
             totalHeight
         }

@@ -306,16 +306,26 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         // 动画过程中，如果气泡位置变化（如从长变短），文本应该跟随气泡的固定边缘移动
         
         // 获取动画插值后的气泡位置，用于布局
-        val layoutRect = if (isAnimating) {
-            val p = transitionParams.animateChangeProgress
-            RectF(
-                lerp(transitionParams.startRect.left, transitionParams.endRect.left, p),
-                lerp(transitionParams.startRect.top, transitionParams.endRect.top, p),
-                lerp(transitionParams.startRect.right, transitionParams.endRect.right, p),
-                lerp(transitionParams.startRect.bottom, transitionParams.endRect.bottom, p)
-            )
-        } else {
-            bubbleRect
+        // 如果正在等待布局（awaitingLayout），应该使用 startRect，避免文本位置跳到最终位置
+        val layoutRect = when {
+            isAnimating -> {
+                // 动画进行中，使用插值后的位置
+                val p = transitionParams.animateChangeProgress
+                RectF(
+                    lerp(transitionParams.startRect.left, transitionParams.endRect.left, p),
+                    lerp(transitionParams.startRect.top, transitionParams.endRect.top, p),
+                    lerp(transitionParams.startRect.right, transitionParams.endRect.right, p),
+                    lerp(transitionParams.startRect.bottom, transitionParams.endRect.bottom, p)
+                )
+            }
+            transitionParams.awaitingLayout && !transitionParams.startRect.isEmpty -> {
+                // 等待布局时，使用 startRect（旧位置），避免文本位置跳到最终位置
+                transitionParams.startRect
+            }
+            else -> {
+                // 正常情况，使用当前 bubbleRect
+                bubbleRect
+            }
         }
         
         // 1) 顶部：用户名
@@ -451,17 +461,8 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             // 行内条件不满足时，按底部时间行绘制避免重叠
             TgTimeAnchorBottomRight.getTimeY(rect, lastBaseline, timePaint, paddingBottom.toFloat())
         }
-        val alphaFactor = if (transitionParams.isRunning &&
-            (transitionParams.payloads.contains(TgMessagePayloads.TIME) ||
-                transitionParams.payloads.contains(TgMessagePayloads.LAYOUT))) {
-            transitionParams.animateChangeProgress
-        } else {
-            1f
-        }
-        val baseTimeAlpha = timePaint.alpha
-        val baseStatusAlpha = statusPaint.alpha
-        timePaint.alpha = (baseTimeAlpha * alphaFactor).toInt().coerceIn(0, 255)
-        statusPaint.alpha = (baseStatusAlpha * alphaFactor).toInt().coerceIn(0, 255)
+        // 时间和消息状态始终显示，没有渐变效果，只有位置会变化
+        // 位置基于动画插值后的 rect，会跟随气泡大小变化
         canvas.drawText(timeText, timeX, timeY, timePaint)
         // 绘制消息状态（紧随时间右侧）
         if (showStatus && statusWidthF > 0f) {
@@ -469,8 +470,6 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             val statusY = timeY
             canvas.drawText(statusText, statusX, statusY, statusPaint)
         }
-        timePaint.alpha = baseTimeAlpha
-        statusPaint.alpha = baseStatusAlpha
     }
 
     /** 可选子 View 测量（为空返回 0，高度用于累加） */
@@ -536,6 +535,8 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
                 val progress = it.animatedValue as Float
                 transitionParams.animateChangeProgress = progress
                 applyExtraViewProgress(transitionParams.payloads, progress)
+                // 动画过程中需要重新布局子 view，使它们跟随气泡位置变化
+                requestLayout()
                 invalidate()
             }
             addListener(object : AnimatorListenerAdapter() {

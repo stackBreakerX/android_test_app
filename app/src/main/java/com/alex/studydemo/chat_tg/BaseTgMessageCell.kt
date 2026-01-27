@@ -300,55 +300,83 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             lastBubbleRect.set(bubbleRect)
         }
         
-        // 参考 Telegram：文本位置相对于气泡的左上角
-        // 动画过程中，如果气泡位置变化（如从长变短），文本位置应该跟随气泡左上角移动
-        // 获取当前过渡中的气泡绘制矩形（插值后），用于布局
-        val layoutRect = if (isAnimating) {
-            val p = transitionParams.animateChangeProgress
-            RectF(
-                lerp(transitionParams.startRect.left, transitionParams.endRect.left, p),
-                lerp(transitionParams.startRect.top, transitionParams.endRect.top, p),
-                lerp(transitionParams.startRect.right, transitionParams.endRect.right, p),
-                lerp(transitionParams.startRect.bottom, transitionParams.endRect.bottom, p)
-            )
-        } else {
-            bubbleRect
-        }
+        // 参考 Telegram：文本位置固定在气泡的固定边缘
+        // 右侧消息（fromMe = true）：文本固定在气泡左边（左对齐），动画过程中位置不变
+        // 左侧消息（fromMe = false）：文本固定在气泡右边（右对齐），动画过程中位置不变
+        // 这样当气泡大小变化时，文本相对于固定边缘的位置保持不变
+        
         // 1) 顶部：用户名
-        var cy = (layoutRect.top + paddingTop).toInt()
-        val cx = (layoutRect.left + getPaddingStartLocal()).toInt()
+        var cy = (bubbleRect.top + paddingTop).toInt()
+        val cx = if (fromMe) {
+            // 右侧消息：固定在气泡左边（左对齐）
+            (bubbleRect.left + getPaddingStartLocal()).toInt()
+        } else {
+            // 左侧消息：固定在气泡右边（右对齐）
+            // 需要先测量用户名宽度，然后计算右对齐位置
+            val userNameWidth = userNameView?.measuredWidth ?: 0
+            (bubbleRect.right - getPaddingEndLocal() - userNameWidth).toInt()
+        }
         userNameView?.let { child ->
             child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
             cy += child.measuredHeight + extraSpacing
         }
         // 2) 引用/转发
         replyView?.let { child ->
-            child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
+            val replyX = if (fromMe) {
+                // 右侧消息：固定在气泡左边（左对齐）
+                (bubbleRect.left + getPaddingStartLocal()).toInt()
+            } else {
+                // 左侧消息：固定在气泡右边（右对齐）
+                (bubbleRect.right - getPaddingEndLocal() - child.measuredWidth).toInt()
+            }
+            child.layout(replyX, cy, replyX + child.measuredWidth, cy + child.measuredHeight)
             cy += child.measuredHeight + extraSpacing
         }
 
         // 确保 contentView 的布局宽度不超过气泡内容宽度，防止文本溢出
-        // 使用动画插值后的气泡内容宽度，确保文本在动画过程中被正确裁剪
-        val actualBubbleContentWidth = (layoutRect.width() - getPaddingStartLocal() - getPaddingEndLocal()).toInt()
+        val actualBubbleContentWidth = (bubbleRect.width() - getPaddingStartLocal() - getPaddingEndLocal()).toInt()
         val maxContentWidth = actualBubbleContentWidth.coerceAtLeast(1)
         // 强制限制布局宽度，确保不会超出气泡边界
         val contentLayoutWidth = kotlin.math.min(contentView.measuredWidth, maxContentWidth)
+        
+        // 计算 contentView 的布局位置
+        val contentX = if (fromMe) {
+            // 右侧消息：固定在气泡左边（左对齐）
+            (bubbleRect.left + getPaddingStartLocal()).toInt()
+        } else {
+            // 左侧消息：固定在气泡右边（右对齐）
+            (bubbleRect.right - getPaddingEndLocal() - contentLayoutWidth).toInt()
+        }
         contentView.layout(
-            cx,
+            contentX,
             cy,
-            cx + contentLayoutWidth,
+            contentX + contentLayoutWidth,
             cy + contentView.measuredHeight
         )
         cy += contentView.measuredHeight + extraSpacing
 
         // 3) 底部：翻译
         translateView?.let { child ->
-            child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
+            val translateX = if (fromMe) {
+                // 右侧消息：固定在气泡左边（左对齐）
+                (bubbleRect.left + getPaddingStartLocal()).toInt()
+            } else {
+                // 左侧消息：固定在气泡右边（右对齐）
+                (bubbleRect.right - getPaddingEndLocal() - child.measuredWidth).toInt()
+            }
+            child.layout(translateX, cy, translateX + child.measuredWidth, cy + child.measuredHeight)
         }
         // 4) LiveView 锚定气泡底部左侧
         liveView?.let { child ->
-            val ly = (layoutRect.bottom - paddingBottom - child.measuredHeight).toInt()
-            child.layout(cx, ly, cx + child.measuredWidth, ly + child.measuredHeight)
+            val ly = (bubbleRect.bottom - paddingBottom - child.measuredHeight).toInt()
+            val liveX = if (fromMe) {
+                // 右侧消息：固定在气泡左边（左对齐）
+                (bubbleRect.left + getPaddingStartLocal()).toInt()
+            } else {
+                // 左侧消息：固定在气泡右边（右对齐）
+                (bubbleRect.right - getPaddingEndLocal() - child.measuredWidth).toInt()
+            }
+            child.layout(liveX, ly, liveX + child.measuredWidth, ly + child.measuredHeight)
         }
     }
 

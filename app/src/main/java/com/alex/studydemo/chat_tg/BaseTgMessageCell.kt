@@ -90,6 +90,9 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
 
     init {
         setWillNotDraw(false)
+        // 设置裁剪，确保子 view 不会超出边界
+        setClipChildren(true)
+        setClipToPadding(true)
     }
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -223,13 +226,27 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         // 气泡总高度 = 顶部块 + 内容 + 底部块 + 时间行（可选） + Live 预留 + 内边距
         val bubbleHeight = topBlocksH + contentHeight + bottomBlocksH + paddingTop + paddingBottom + liveReserve + if (timeWrapped) timeRowHeight else 0
         val totalHeight = bubbleHeight + dp(12f)
+        
         // 当执行“向上不影响邻居”的背景尺寸变化动画时，如果是变大过程，保持测量高度为旧值，避免推动上方气泡
+        // 参考 Telegram：动画期间保持测量高度不变，只通过绘制插值来显示变化
         val animatingBackground = transitionParams.isRunning &&
                 transitionParams.startRect.height() > 0f &&
                 transitionParams.endRect.height() > 0f &&
                 transitionParams.animateChangeProgress < 1f
-        val keepOldHeight = animatingBackground && transitionParams.endRect.height() > transitionParams.startRect.height()
-        val measuredHeight = if (keepOldHeight) transitionParams.startRect.height().toInt() else totalHeight
+        
+        val measuredHeight = if (animatingBackground) {
+            // 动画期间，始终使用 startRect 的高度（旧高度），避免推动上方气泡
+            // 这样气泡变大时，测量高度不变，只有绘制时才会显示变大效果
+            val oldTotalHeight = if (transitionParams.startRect.height() > 0f) {
+                // startRect 是气泡 rect，需要加上上下间距（6dp * 2）
+                (transitionParams.startRect.height() + dpF(12f)).toInt()
+            } else {
+                totalHeight
+            }
+            oldTotalHeight
+        } else {
+            totalHeight
+        }
         setMeasuredDimension(width, measuredHeight)
     }
 
@@ -310,10 +327,13 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             cy += child.measuredHeight + extraSpacing
         }
 
+        // 确保 contentView 的布局宽度不超过气泡内容宽度，防止文本溢出
+        val maxContentWidth = (layoutRect.width() - getPaddingStartLocal() - getPaddingEndLocal()).toInt()
+        val contentLayoutWidth = kotlin.math.min(contentView.measuredWidth, maxContentWidth)
         contentView.layout(
             cx,
             cy,
-            cx + contentView.measuredWidth,
+            cx + contentLayoutWidth,
             cy + contentView.measuredHeight
         )
         cy += contentView.measuredHeight + extraSpacing
@@ -334,12 +354,17 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         drawBubble(canvas)
         // 获取当前过渡中的气泡绘制矩形（插值后）
         val rect = getDrawBubbleRect(drawBubbleRect)
-        // 将子内容裁剪在气泡圆角范围内，并按过渡矩形相对最终布局矩形的偏移来平移
+        // 将子内容裁剪在气泡圆角范围内，防止文本溢出
         canvas.save()
-        val clipPath = Path()
         val radius = dpF(18f)
-        clipPath.addRoundRect(rect, radius, radius, Path.Direction.CW)
-        canvas.clipPath(clipPath)
+        // 使用更严格的裁剪区域，确保文本不会溢出气泡边界
+        // 参考 Telegram：r.left + dp(4), r.top + dp(4), r.right - dp(4), r.bottom - dp(4)
+        val clipLeft = rect.left + dpF(4f)
+        val clipTop = rect.top + dpF(4f)
+        val clipRight = rect.right - dpF(if (fromMe) 10f else 4f) // 右侧消息需要更多右边距
+        val clipBottom = rect.bottom - dpF(4f)
+        // 使用 clipRect 而不是 clipPath，更高效且更精确
+        canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)
         // 计算过渡中的绘制矩形与实际布局矩形的偏移，使内容在动画过程中锚定到气泡左上角
         val dx = rect.left - bubbleRect.left
         val dy = rect.top - bubbleRect.top

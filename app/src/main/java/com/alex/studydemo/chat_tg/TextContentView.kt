@@ -206,6 +206,10 @@ class TextContentView @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas) {
+        // 裁剪绘制区域，确保文本不会超出 View 边界
+        canvas.save()
+        canvas.clipRect(0f, 0f, width.toFloat(), height.toFloat())
+        
         // 如果正在 crossfade 动画，同时绘制旧文本（淡出）和新文本（淡入）
         if (crossfadeProgress < 1f && animateOutBlocks.isNotEmpty() && animateInBlocks.isNotEmpty()) {
             val oldAlpha = (255 * (1f - crossfadeProgress)).toInt().coerceIn(0, 255)
@@ -218,6 +222,8 @@ class TextContentView @JvmOverloads constructor(
                 for (block in animateOutBlocks) {
                     canvas.save()
                     canvas.translate(0f, y + block.padTop)
+                    // 确保文本不会超出当前 View 的宽度
+                    canvas.clipRect(0f, 0f, width.toFloat(), block.height.toFloat())
                     block.textLayout.draw(canvas)
                     canvas.restore()
                     y += (block.padTop + block.height + block.padBottom).toFloat()
@@ -232,6 +238,8 @@ class TextContentView @JvmOverloads constructor(
                 for (block in animateInBlocks) {
                     canvas.save()
                     canvas.translate(0f, y + block.padTop)
+                    // 确保文本不会超出当前 View 的宽度
+                    canvas.clipRect(0f, 0f, width.toFloat(), block.height.toFloat())
                     block.textLayout.draw(canvas)
                     canvas.restore()
                     y += (block.padTop + block.height + block.padBottom).toFloat()
@@ -240,16 +248,23 @@ class TextContentView @JvmOverloads constructor(
             }
         } else {
             // 正常绘制
-            if (blocks.isEmpty()) return
+            if (blocks.isEmpty()) {
+                canvas.restore()
+                return
+            }
             var y = 0f
             for (block in blocks) {
                 canvas.save()
                 canvas.translate(0f, y + block.padTop)
+                // 确保文本不会超出当前 View 的宽度
+                canvas.clipRect(0f, 0f, width.toFloat(), block.height.toFloat())
                 block.textLayout.draw(canvas)
                 canvas.restore()
                 y += (block.padTop + block.height + block.padBottom).toFloat()
             }
         }
+        
+        canvas.restore()
     }
 
     override fun getContentWidth(): Int {

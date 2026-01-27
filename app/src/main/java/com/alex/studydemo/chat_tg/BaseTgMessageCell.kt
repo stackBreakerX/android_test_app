@@ -355,17 +355,26 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     override fun dispatchDraw(canvas: Canvas) {
         // 先绘制气泡
         drawBubble(canvas)
-        // 获取当前过渡中的气泡绘制矩形（插值后）
-        val rect = getDrawBubbleRect(drawBubbleRect)
-        // 将子内容裁剪在气泡圆角范围内，防止文本溢出
+        // 参考 Telegram：裁剪区域基于气泡的实际边界（bubbleRect），而不是动画插值后的 rect
+        // 这样可以确保文本始终被裁剪在气泡的实际边界内，防止溢出
+        // 参考 Telegram：r.left + dp(4), r.top + dp(4), r.right - dp(10/4), r.bottom - dp(4)
         canvas.save()
-        // 先设置裁剪区域（基于动画后的气泡内容区域）
-        val clipLeft = rect.left + getPaddingStartLocal().toFloat()
-        val clipTop = rect.top + paddingTop.toFloat()
-        val clipRight = rect.right - getPaddingEndLocal().toFloat()
-        val clipBottom = rect.bottom - paddingBottom.toFloat()
-        canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)
-        // 然后 translate，使子 view 的内容对齐到动画后的位置
+        if (fromMe) {
+            // 右侧消息：右边距 dp(10)（为时间/状态预留更多空间）
+            canvas.clipRect(
+                bubbleRect.left + dpF(4f), bubbleRect.top + dpF(4f),
+                bubbleRect.right - dpF(10f), bubbleRect.bottom - dpF(4f)
+            )
+        } else {
+            // 左侧消息：右边距 dp(4)
+            canvas.clipRect(
+                bubbleRect.left + dpF(4f), bubbleRect.top + dpF(4f),
+                bubbleRect.right - dpF(4f), bubbleRect.bottom - dpF(4f)
+            )
+        }
+        // 获取当前过渡中的气泡绘制矩形（插值后），用于 translate
+        val rect = getDrawBubbleRect(drawBubbleRect)
+        // translate 使子 view 的内容对齐到动画后的位置
         val dx = rect.left - bubbleRect.left
         val dy = rect.top - bubbleRect.top
         canvas.translate(dx, dy)

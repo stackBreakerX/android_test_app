@@ -307,9 +307,17 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
                 val idx = items.indexOfFirst { it is TgMessageItem.Text && it.id == id }
                 if (idx >= 0) {
                     val old = items[idx] as TgMessageItem.Text
-                    val updated = old.copy(layoutPack = pack)
+                    val updated = old.copy(text = newText, layoutPack = pack)
                     items[idx] = updated
-                    adapter.submitList(items.toList())
+                    // 编辑动画期间暂时禁用列表 ItemAnimator，避免邻居项在过渡帧被推动
+                    val prevAnimator = binding.recyclerView.itemAnimator
+                    binding.recyclerView.itemAnimator = null
+                    adapter.submitList(items.toList()) {
+                        // 恢复 ItemAnimator（与 BaseTgMessageCell 的内部过渡时长对齐）
+                        binding.recyclerView.postDelayed({
+                            binding.recyclerView.itemAnimator = prevAnimator
+                        }, 260)
+                    }
                 }
             }
         }

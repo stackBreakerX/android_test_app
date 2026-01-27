@@ -300,11 +300,23 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             lastBubbleRect.set(bubbleRect)
         }
         
-        // 参考 Telegram：文本位置固定，相对于气泡的最终位置（bubbleRect）
-        // 动画过程中只有气泡大小和时间/状态位置会变化，文本位置不变
+        // 参考 Telegram：文本位置相对于气泡的左上角
+        // 动画过程中，如果气泡位置变化（如从长变短），文本位置应该跟随气泡左上角移动
+        // 获取当前过渡中的气泡绘制矩形（插值后），用于布局
+        val layoutRect = if (isAnimating) {
+            val p = transitionParams.animateChangeProgress
+            RectF(
+                lerp(transitionParams.startRect.left, transitionParams.endRect.left, p),
+                lerp(transitionParams.startRect.top, transitionParams.endRect.top, p),
+                lerp(transitionParams.startRect.right, transitionParams.endRect.right, p),
+                lerp(transitionParams.startRect.bottom, transitionParams.endRect.bottom, p)
+            )
+        } else {
+            bubbleRect
+        }
         // 1) 顶部：用户名
-        var cy = (bubbleRect.top + paddingTop).toInt()
-        val cx = (bubbleRect.left + getPaddingStartLocal()).toInt()
+        var cy = (layoutRect.top + paddingTop).toInt()
+        val cx = (layoutRect.left + getPaddingStartLocal()).toInt()
         userNameView?.let { child ->
             child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
             cy += child.measuredHeight + extraSpacing
@@ -316,8 +328,8 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         }
 
         // 确保 contentView 的布局宽度不超过气泡内容宽度，防止文本溢出
-        // 使用实际的气泡内容宽度（基于 bubbleRect，这是最终布局的宽度）
-        val actualBubbleContentWidth = (bubbleRect.width() - getPaddingStartLocal() - getPaddingEndLocal()).toInt()
+        // 使用动画插值后的气泡内容宽度，确保文本在动画过程中被正确裁剪
+        val actualBubbleContentWidth = (layoutRect.width() - getPaddingStartLocal() - getPaddingEndLocal()).toInt()
         val maxContentWidth = actualBubbleContentWidth.coerceAtLeast(1)
         // 强制限制布局宽度，确保不会超出气泡边界
         val contentLayoutWidth = kotlin.math.min(contentView.measuredWidth, maxContentWidth)
@@ -335,7 +347,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         }
         // 4) LiveView 锚定气泡底部左侧
         liveView?.let { child ->
-            val ly = (bubbleRect.bottom - paddingBottom - child.measuredHeight).toInt()
+            val ly = (layoutRect.bottom - paddingBottom - child.measuredHeight).toInt()
             child.layout(cx, ly, cx + child.measuredWidth, ly + child.measuredHeight)
         }
     }

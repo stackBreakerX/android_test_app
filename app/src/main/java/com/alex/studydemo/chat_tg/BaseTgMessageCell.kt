@@ -234,11 +234,14 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
                 transitionParams.endRect.height() > 0f &&
                 transitionParams.animateChangeProgress < 1f
         
-        val predictedIncreasing = transitionParams.startRect.height() > 0f && bubbleHeight > transitionParams.startRect.height().toInt()
+        // 判断是否为“变大”过程，使用 startRect 或 lastBubbleRect 作为旧高度来源
+        val startH = if (transitionParams.startRect.height() > 0f) transitionParams.startRect.height()
+            else if (lastBubbleRect.height() > 0f) lastBubbleRect.height() else 0f
+        val predictedIncreasing = startH > 0f && bubbleHeight.toFloat() > startH
         val increasing = (transitionParams.endRect.height() > transitionParams.startRect.height()) || predictedIncreasing
         val inTransition = transitionParams.awaitingLayout || animatingBackground
-        val measuredHeight = if (inTransition && increasing && transitionParams.startRect.height() > 0f) {
-            (transitionParams.startRect.height() + dpF(12f)).toInt()
+        val measuredHeight = if (increasing && inTransition && startH > 0f) {
+            (startH + dpF(12f)).toInt()
         } else {
             totalHeight
         }
@@ -523,8 +526,14 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         transitionParams.startRect.setEmpty()
         transitionParams.endRect.setEmpty()
         transitionAnimator = null
-        // 避免在动画结束时触发额外的布局，防止文本闪烁
-        invalidate()
+        // 动画结束后，如果最终高度与起始高度不同，则申请一次布局以应用最终高度
+        val startH = transitionParams.startRect.height()
+        val endH = transitionParams.endRect.height()
+        if (endH > 0f && startH != endH) {
+            requestLayout()
+        } else {
+            invalidate()
+        }
     }
 
     private fun applyExtraViewProgress(payloads: Set<String>, progress: Float) {

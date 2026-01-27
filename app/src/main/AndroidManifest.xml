@@ -119,6 +119,10 @@
         <activity
             android:name=".module_thread.ThreadEntryActivity"
             android:exported="false" />
+
+        <activity android:name=".chat_tg.TgTextChatActivity"
+            android:exported="false"
+            />
         <activity
             android:name=".module_performance.PerformanceEntryActivity"
             android:exported="false" />

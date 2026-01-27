@@ -107,10 +107,13 @@ class TgTextMessageAdapter(
                 }
                 // 如果包含 TEXT payload，启动文本 crossfade 动画
                 val shouldAnimateText = payloadSet.contains(TgMessagePayloads.TEXT)
-                textHolder.bind(item, animate = shouldAnimateText)
+                // 先准备动画（保存 startRect），再更新内容
+                // 动画会在 layout 完成后自动启动（在 onLayout 中）
                 if (payloadSet.isNotEmpty()) {
-                    textHolder.cell.runTransition(payloadSet)
+                    textHolder.cell.prepareTransition(payloadSet)
                 }
+                // 然后更新内容（这会触发 layout，layout 完成后会启动动画）
+                textHolder.bind(item, animate = shouldAnimateText)
             }
             else -> onBindViewHolder(holder, position)
         }

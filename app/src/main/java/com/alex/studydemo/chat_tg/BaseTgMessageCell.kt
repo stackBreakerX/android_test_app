@@ -5,6 +5,7 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.graphics.Canvas
+ import android.graphics.Path
 import android.graphics.RectF
 import android.text.TextPaint
 import android.util.AttributeSet
@@ -146,6 +147,9 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         val textContentView = contentView as? TextContentView
         // 先清掉旧的预留宽度，避免复用导致判断失真
         textContentView?.setReservedRight(0)
+        
+        // 在动画期间，确保使用新的内容尺寸
+        // TextContentView 的 getContentWidth() 已经在动画期间返回新 blocks 的宽度
         contentView.measure(
             MeasureSpec.makeMeasureSpec(max(1, contentWidth), MeasureSpec.AT_MOST),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
@@ -225,53 +229,70 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         val oldRect = RectF(lastBubbleRect)
         val width = width.toFloat()
-        val timePaint = if (fromMe) timePaintOut else timePaintIn
-        val maxBubbleWidth = (width * maxBubbleWidthRatio).toInt()
-        val contentWidth = maxBubbleWidth - (getPaddingStartLocal() + getPaddingEndLocal())
-        val timeWidth = timePaint.measureText(timeText).toInt()
-        val statusWidth = if (showStatus) statusPaint.measureText(statusText).toInt() else 0
-        val textWidth = contentAsTg.getContentWidth()
-        val lastLineWidth = contentAsTg.getLastLineWidth()
-        val inlineWidth = lastLineWidth + timeExtraWidth + timeWidth + statusWidth + (if (showStatus) statusGap else 0)
-        val bubbleContentWidth = when {
-            inlineTimeWithText && timeInline -> max(textWidth, inlineWidth)
-            inlineTimeWithText && timeWrapped -> max(textWidth, contentWidth)
-            else -> max(textWidth, timeWidth)
-        }
-        val bubbleWidth = bubbleContentWidth + getPaddingStartLocal() + getPaddingEndLocal()
-        val contentHeight = contentView.measuredHeight
-        val userNameH = userNameView?.measuredHeight ?: 0
-        val replyH = replyView?.measuredHeight ?: 0
-        val translateH = translateView?.measuredHeight ?: 0
-        val topBlocksH = listOf(userNameH, replyH).filter { it > 0 }.sum() + if ((userNameH + replyH) > 0) extraSpacing else 0
-        val bottomBlocksH = if (translateH > 0) translateH + extraSpacing else 0
-        val liveH = liveView?.measuredHeight ?: 0
-        val liveReserve = if (liveH > 0) liveH + extraSpacing else 0
-        val bubbleHeight = topBlocksH + contentHeight + bottomBlocksH + paddingTop + paddingBottom + liveReserve + if (timeWrapped) timeRowHeight else 0
-        val left = if (fromMe) width - bubbleWidth - dpF(8f) else dpF(8f)
-        val top = dpF(6f)
-        bubbleRect.set(left, top, left + bubbleWidth, top + bubbleHeight)
-        if (transitionParams.awaitingLayout) {
-            // 如果 startRect 还没设置，使用旧的 rect（如果存在）或当前 rect
-            if (transitionParams.startRect.isEmpty) {
-                if (!oldRect.isEmpty) {
-                    transitionParams.startRect.set(oldRect)
-                } else {
-                    transitionParams.startRect.set(bubbleRect)
+        
+        // 如果正在动画，使用插值后的 rect，不重新计算 bubbleRect
+        val isAnimating = transitionParams.isRunning && 
+            transitionParams.startRect.width() > 0 && transitionParams.startRect.height() > 0 &&
+            transitionParams.endRect.width() > 0 && transitionParams.endRect.height() > 0
+        
+        if (!isAnimating) {
+            // 只有在非动画状态下才重新计算 bubbleRect
+            val timePaint = if (fromMe) timePaintOut else timePaintIn
+            val maxBubbleWidth = (width * maxBubbleWidthRatio).toInt()
+            val contentWidth = maxBubbleWidth - (getPaddingStartLocal() + getPaddingEndLocal())
+            val timeWidth = timePaint.measureText(timeText).toInt()
+            val statusWidth = if (showStatus) statusPaint.measureText(statusText).toInt() else 0
+            val textWidth = contentAsTg.getContentWidth()
+            val lastLineWidth = contentAsTg.getLastLineWidth()
+            val inlineWidth = lastLineWidth + timeExtraWidth + timeWidth + statusWidth + (if (showStatus) statusGap else 0)
+            val bubbleContentWidth = when {
+                inlineTimeWithText && timeInline -> max(textWidth, inlineWidth)
+                inlineTimeWithText && timeWrapped -> max(textWidth, contentWidth)
+                else -> max(textWidth, timeWidth)
+            }
+            val bubbleWidth = bubbleContentWidth + getPaddingStartLocal() + getPaddingEndLocal()
+            val contentHeight = contentView.measuredHeight
+            val userNameH = userNameView?.measuredHeight ?: 0
+            val replyH = replyView?.measuredHeight ?: 0
+            val translateH = translateView?.measuredHeight ?: 0
+            val topBlocksH = listOf(userNameH, replyH).filter { it > 0 }.sum() + if ((userNameH + replyH) > 0) extraSpacing else 0
+            val bottomBlocksH = if (translateH > 0) translateH + extraSpacing else 0
+            val liveH = liveView?.measuredHeight ?: 0
+            val liveReserve = if (liveH > 0) liveH + extraSpacing else 0
+            val bubbleHeight = topBlocksH + contentHeight + bottomBlocksH + paddingTop + paddingBottom + liveReserve + if (timeWrapped) timeRowHeight else 0
+            val left = if (fromMe) width - bubbleWidth - dpF(8f) else dpF(8f)
+            val top = dpF(6f)
+            bubbleRect.set(left, top, left + bubbleWidth, top + bubbleHeight)
+            
+            if (transitionParams.awaitingLayout) {
+                // 设置 endRect 为新的 rect
+                transitionParams.endRect.set(bubbleRect)
+                transitionParams.awaitingLayout = false
+                // Layout 完成后，延迟启动动画（确保 endRect 已设置）
+                post {
+                    startTransitionAnimation()
                 }
             }
-            // 设置 endRect 为新的 rect
-            transitionParams.endRect.set(bubbleRect)
-            transitionParams.awaitingLayout = false
-        } else if (transitionParams.isRunning) {
-            // 如果动画正在运行，更新 endRect（处理动画过程中的 layout）
-            transitionParams.endRect.set(bubbleRect)
+            lastBubbleRect.set(bubbleRect)
         }
-        lastBubbleRect.set(bubbleRect)
-
+        
+        // 在动画期间，子 view 的布局应该基于插值后的 rect，而不是 bubbleRect
+        val layoutRect = if (isAnimating) {
+            // 使用插值后的 rect 进行布局
+            val p = transitionParams.animateChangeProgress
+            RectF(
+                lerp(transitionParams.startRect.left, transitionParams.endRect.left, p),
+                lerp(transitionParams.startRect.top, transitionParams.endRect.top, p),
+                lerp(transitionParams.startRect.right, transitionParams.endRect.right, p),
+                lerp(transitionParams.startRect.bottom, transitionParams.endRect.bottom, p)
+            )
+        } else {
+            bubbleRect
+        }
+        
         // 1) 顶部：用户名
-        var cy = (bubbleRect.top + paddingTop).toInt()
-        val cx = (bubbleRect.left + getPaddingStartLocal()).toInt()
+        var cy = (layoutRect.top + paddingTop).toInt()
+        val cx = (layoutRect.left + getPaddingStartLocal()).toInt()
         userNameView?.let { child ->
             child.layout(cx, cy, cx + child.measuredWidth, cy + child.measuredHeight)
             cy += child.measuredHeight + extraSpacing
@@ -296,14 +317,22 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         }
         // 4) LiveView 锚定气泡底部左侧
         liveView?.let { child ->
-            val ly = (bubbleRect.bottom - paddingBottom - child.measuredHeight).toInt()
+            val ly = (layoutRect.bottom - paddingBottom - child.measuredHeight).toInt()
             child.layout(cx, ly, cx + child.measuredWidth, ly + child.measuredHeight)
         }
     }
 
     override fun dispatchDraw(canvas: Canvas) {
+        // 先绘制气泡，再将子内容裁剪在气泡圆角范围内，避免动画过程中内容越界
         drawBubble(canvas)
+        val rect = getDrawBubbleRect(drawBubbleRect)
+        canvas.save()
+        val clipPath = Path()
+        val radius = dpF(18f)
+        clipPath.addRoundRect(rect, radius, radius, Path.Direction.CW)
+        canvas.clipPath(clipPath)
         super.dispatchDraw(canvas)
+        canvas.restore()
         drawTime(canvas)
     }
 
@@ -374,50 +403,54 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     protected fun dp(value: Float): Int = (value * resources.displayMetrics.density).toInt()
     protected fun dpF(value: Float): Float = TgAndroidUtilities.dpF(value, resources.displayMetrics.density)
 
-    /** 启动基于 Diff payload 的过渡动画 */
-    fun runTransition(payloads: Set<String>) {
+    /** 准备过渡动画（在更新内容前调用，保存 startRect） */
+    fun prepareTransition(payloads: Set<String>) {
         transitionAnimator?.cancel()
         transitionParams.payloads = payloads
         transitionParams.animateChangeProgress = 0f
-        transitionParams.isRunning = false // 先不启动，等 layout 完成
+        transitionParams.isRunning = false
         transitionParams.awaitingLayout = true
-        // 保存当前 rect 作为 startRect（如果还没有保存过）
-        if (transitionParams.startRect.isEmpty && !lastBubbleRect.isEmpty) {
+        // 保存当前 rect 作为 startRect
+        if (!lastBubbleRect.isEmpty) {
             transitionParams.startRect.set(lastBubbleRect)
+        } else if (!bubbleRect.isEmpty) {
+            transitionParams.startRect.set(bubbleRect)
         }
-        requestLayout()
-        // 延迟启动动画，确保 layout 完成
-        post {
-            if (transitionParams.awaitingLayout) {
-                // 如果 layout 还没完成，再等一帧
-                post {
-                    startTransitionAnimation(payloads)
-                }
-            } else {
-                startTransitionAnimation(payloads)
-            }
-        }
+        // 清空 endRect，等待 layout 完成后设置
+        transitionParams.endRect.setEmpty()
     }
 
-    private fun startTransitionAnimation(payloads: Set<String>) {
+    /** 启动过渡动画（在内容更新和 layout 完成后调用） */
+    fun startTransitionAnimation() {
         // 确保 startRect 和 endRect 都已设置
-        if (transitionParams.startRect.isEmpty || transitionParams.endRect.isEmpty) {
-            // 如果还没准备好，使用当前 rect
-            if (transitionParams.startRect.isEmpty) {
-                transitionParams.startRect.set(bubbleRect)
-            }
-            if (transitionParams.endRect.isEmpty) {
-                transitionParams.endRect.set(bubbleRect)
-            }
+        if (transitionParams.startRect.isEmpty) {
+            // 如果 startRect 还没设置，使用当前 rect
+            transitionParams.startRect.set(bubbleRect)
         }
+        if (transitionParams.endRect.isEmpty) {
+            // 如果 endRect 还没设置，使用当前 rect（layout 应该已经完成）
+            transitionParams.endRect.set(bubbleRect)
+        }
+        
+        // 检查 startRect 和 endRect 是否相同，如果相同则不需要动画
+        if (transitionParams.startRect.left == transitionParams.endRect.left &&
+            transitionParams.startRect.top == transitionParams.endRect.top &&
+            transitionParams.startRect.right == transitionParams.endRect.right &&
+            transitionParams.startRect.bottom == transitionParams.endRect.bottom) {
+            // 尺寸没有变化，直接完成
+            finishTransition()
+            return
+        }
+        
         transitionParams.isRunning = true
+        transitionParams.awaitingLayout = false
         val animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 220L
             interpolator = PathInterpolator(0.2f, 0f, 0.2f, 1f)
             addUpdateListener {
                 val progress = it.animatedValue as Float
                 transitionParams.animateChangeProgress = progress
-                applyExtraViewProgress(payloads, progress)
+                applyExtraViewProgress(transitionParams.payloads, progress)
                 invalidate()
             }
             addListener(object : AnimatorListenerAdapter() {
@@ -439,10 +472,14 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         transitionParams.isRunning = false
         transitionParams.awaitingLayout = false
         applyExtraViewProgress(transitionParams.payloads, 1f)
+        // 更新 lastBubbleRect 为最终状态
+        lastBubbleRect.set(bubbleRect)
         // 清理 rect，准备下次动画
         transitionParams.startRect.setEmpty()
         transitionParams.endRect.setEmpty()
         transitionAnimator = null
+        // 动画结束后，重新布局以确保子 view 位置正确
+        requestLayout()
         invalidate()
     }
 

@@ -328,7 +328,10 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         }
 
         // 确保 contentView 的布局宽度不超过气泡内容宽度，防止文本溢出
-        val maxContentWidth = (layoutRect.width() - getPaddingStartLocal() - getPaddingEndLocal()).toInt()
+        // 使用实际的气泡内容宽度（基于 bubbleRect，这是最终布局的宽度）
+        val actualBubbleContentWidth = (bubbleRect.width() - getPaddingStartLocal() - getPaddingEndLocal()).toInt()
+        val maxContentWidth = actualBubbleContentWidth.coerceAtLeast(1)
+        // 强制限制布局宽度，确保不会超出气泡边界
         val contentLayoutWidth = kotlin.math.min(contentView.measuredWidth, maxContentWidth)
         contentView.layout(
             cx,
@@ -356,16 +359,13 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         val rect = getDrawBubbleRect(drawBubbleRect)
         // 将子内容裁剪在气泡圆角范围内，防止文本溢出
         canvas.save()
-        val radius = dpF(18f)
-        // 使用更严格的裁剪区域，确保文本不会溢出气泡边界
-        // 参考 Telegram：r.left + dp(4), r.top + dp(4), r.right - dp(4), r.bottom - dp(4)
-        val clipLeft = rect.left + dpF(4f)
-        val clipTop = rect.top + dpF(4f)
-        val clipRight = rect.right - dpF(if (fromMe) 10f else 4f) // 右侧消息需要更多右边距
-        val clipBottom = rect.bottom - dpF(4f)
-        // 使用 clipRect 而不是 clipPath，更高效且更精确
+        // 先设置裁剪区域（基于动画后的气泡内容区域）
+        val clipLeft = rect.left + getPaddingStartLocal().toFloat()
+        val clipTop = rect.top + paddingTop.toFloat()
+        val clipRight = rect.right - getPaddingEndLocal().toFloat()
+        val clipBottom = rect.bottom - paddingBottom.toFloat()
         canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)
-        // 计算过渡中的绘制矩形与实际布局矩形的偏移，使内容在动画过程中锚定到气泡左上角
+        // 然后 translate，使子 view 的内容对齐到动画后的位置
         val dx = rect.left - bubbleRect.left
         val dy = rect.top - bubbleRect.top
         canvas.translate(dx, dy)

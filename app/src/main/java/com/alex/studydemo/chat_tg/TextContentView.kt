@@ -171,10 +171,14 @@ class TextContentView @JvmOverloads constructor(
                     totalH += (b.height + b.padTop + b.padBottom)
                 }
                 contentWidth = cw
-                setMeasuredDimension(cw, totalH)
+                // 确保宽度不超过可用宽度
+                val finalWidth = kotlin.math.min(cw, maxWidth - reservedRight)
+                setMeasuredDimension(finalWidth, totalH)
                 return
             }
-            setMeasuredDimension(pack.contentWidth, pack.height)
+            // 确保宽度不超过可用宽度
+            val finalWidth = kotlin.math.min(pack.contentWidth, maxWidth - reservedRight)
+            setMeasuredDimension(finalWidth, pack.height)
             return
         }
         
@@ -202,7 +206,9 @@ class TextContentView @JvmOverloads constructor(
         }
         contentWidth = cw
         val height = totalH
-        setMeasuredDimension(contentWidth, height)
+        // 确保宽度不超过可用宽度
+        val finalWidth = kotlin.math.min(contentWidth, available)
+        setMeasuredDimension(finalWidth, height)
     }
 
     override fun onDraw(canvas: Canvas) {

@@ -80,6 +80,7 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
         binding.recyclerView.addItemDecoration(AvatarGroupDecoration(adapter))
         val density = resources.displayMetrics.density
         binding.recyclerView.addItemDecoration(ChatVerticalSpaceDecoration((6f * density).toInt()))
+        binding.recyclerView.addItemDecoration(ChatGapOverlayDecoration((6f * density).toInt()))
         binding.recyclerView.post {
             recyclerWidth = binding.recyclerView.width
         }

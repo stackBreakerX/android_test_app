@@ -323,16 +323,23 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     }
 
     override fun dispatchDraw(canvas: Canvas) {
-        // 先绘制气泡，再将子内容裁剪在气泡圆角范围内，避免动画过程中内容越界
+        // 先绘制气泡
         drawBubble(canvas)
+        // 获取当前过渡中的气泡绘制矩形（插值后）
         val rect = getDrawBubbleRect(drawBubbleRect)
+        // 将子内容裁剪在气泡圆角范围内，并按过渡矩形相对最终布局矩形的偏移来平移
         canvas.save()
         val clipPath = Path()
         val radius = dpF(18f)
         clipPath.addRoundRect(rect, radius, radius, Path.Direction.CW)
         canvas.clipPath(clipPath)
+        // 计算过渡中的绘制矩形与实际布局矩形的偏移，使内容在动画过程中锚定到气泡左上角
+        val dx = rect.left - bubbleRect.left
+        val dy = rect.top - bubbleRect.top
+        canvas.translate(dx, dy)
         super.dispatchDraw(canvas)
         canvas.restore()
+        // 绘制时间与状态（使用过渡矩形坐标）
         drawTime(canvas)
     }
 

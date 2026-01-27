@@ -27,14 +27,22 @@ class TgTextMessageCell @JvmOverloads constructor(
     override val contentAsTg: TgContentView = textContentView
 
     /** 绑定文本消息内容与时间/方向 */
-    fun bindMessage(text: String, time: String, out: Boolean) {
-        textContentView.setText(text)
-        bindBase(time, out)
+    fun bindMessage(text: String, time: String, out: Boolean, pack: TgTextLayoutPack?) {
+        // 如果是纯文本更新，触发 TextContentView 的内部 CrossFade 动画
+        // 注意：如果是首次绑定或非更新操作，animate 应为 false。
+        // 这里通过 pack 是否变化或 text 是否变化来简单判断，但 adapter 已经通过 payloads 控制了动画时机
+        // 我们需要暴露一个 animate 参数给 adapter 调用
+        bindMessage(text, time, out, pack, false)
     }
 
-    fun bindMessage(text: String, time: String, out: Boolean, pack: TgTextLayoutPack?) {
-        textContentView.setLayoutPack(pack)
-        textContentView.setText(text)
+    fun bindMessage(text: String, time: String, out: Boolean, pack: TgTextLayoutPack?, animate: Boolean) {
+        if (pack != null) {
+            textContentView.setLayoutPack(pack, animate)
+        } else {
+            textContentView.setText(text, animate)
+        }
+        // 绑定时间与气泡（这里暂不处理 BaseCell 的 runTransition，因为它处理的是气泡大小插值，
+        // 而 TransitionManager 已经接管了大小变化。我们只需确保内容淡入淡出）
         bindBase(time, out)
     }
 }

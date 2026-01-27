@@ -52,7 +52,9 @@ sealed class TgMessageItem(open val id: Long) {
  * - 通过不同 ViewType 映射到对应的 Cell（文本/图片/视频/文件）
  * - 使用 DiffUtil 比较 id 与内容，提升刷新效率
  */
-class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>(Diff) {
+class TgTextMessageAdapter(
+    private val onTextMessageClick: ((TgMessageItem.Text, android.view.View) -> Unit)? = null
+) : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>(Diff) {
 
     companion object {
         /** 四类消息类型常量 */
@@ -75,7 +77,7 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
             TYPE_IMAGE -> MediaVH(TgImageMessageCell(parent.context))
             TYPE_VIDEO -> MediaVH(TgVideoMessageCell(parent.context))
             TYPE_FILE -> MediaVH(TgFileMessageCell(parent.context))
-            else -> TextVH(TgTextMessageCell(parent.context))
+            else -> TextVH(TgTextMessageCell(parent.context), onTextMessageClick)
         }
     }
 
@@ -96,7 +98,6 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
         when (val item = getItem(position)) {
             is TgMessageItem.Text -> {
                 val textHolder = holder as TextVH
-                textHolder.bind(item)
                 val payloadSet = mutableSetOf<String>()
                 for (payload in payloads) {
                     when (payload) {
@@ -104,6 +105,9 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
                         is String -> payloadSet.add(payload)
                     }
                 }
+                // 如果包含 TEXT payload，启动文本 crossfade 动画
+                val shouldAnimateText = payloadSet.contains(TgMessagePayloads.TEXT)
+                textHolder.bind(item, animate = shouldAnimateText)
                 if (payloadSet.isNotEmpty()) {
                     textHolder.cell.runTransition(payloadSet)
                 }
@@ -112,9 +116,12 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
         }
     }
 
-    class TextVH(val cell: TgTextMessageCell) : RecyclerView.ViewHolder(cell) {
-        fun bind(item: TgMessageItem.Text) {
-            cell.bindMessage(item.text, item.time, item.fromMe, item.layoutPack)
+    class TextVH(
+        val cell: TgTextMessageCell,
+        private val onTextMessageClick: ((TgMessageItem.Text, android.view.View) -> Unit)?
+    ) : RecyclerView.ViewHolder(cell) {
+        fun bind(item: TgMessageItem.Text, animate: Boolean = false) {
+            cell.bindMessage(item.text, item.time, item.fromMe, item.layoutPack, animate)
             // 用户名
             if (item.userName.isNullOrBlank()) {
                 cell.setUserNameView(null)
@@ -151,6 +158,10 @@ class TgTextMessageAdapter : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>
                 // 用空格拆分为多个反应项
                 live.reactions = item.reactions!!.split(' ').filter { it.isNotBlank() }
                 cell.setLiveView(live)
+            }
+            // 设置点击监听器
+            cell.setOnClickListener {
+                onTextMessageClick?.invoke(item, cell)
             }
         }
     }

@@ -33,12 +33,43 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
         title = "TG 文本消息"
         setupRecycler()
         setupInput()
+        setupFuncTest()
         seedMessages()
+    }
+
+    private fun setupFuncTest() {
+        binding.funcTestButton.setOnClickListener { view: android.view.View ->
+            val popup = android.widget.PopupMenu(this, view)
+            popup.menu.add("文本消息编辑功能")
+            popup.setOnMenuItemClickListener { item ->
+                if (item.title == "文本消息编辑功能") {
+                    editLastTextMessage()
+                    true
+                } else {
+                    false
+                }
+            }
+            popup.show()
+        }
+    }
+
+    private fun editLastTextMessage() {
+        val index = items.indexOfLast { it is TgMessageItem.Text }
+        if (index == -1) return
+        val item = items[index] as TgMessageItem.Text
+
+        val shortText = "编辑后的短文本"
+        val longText = "这是一段编辑后的长文本消息，用来测试气泡的大小变化动画效果。Telegram 的气泡在编辑时会平滑地改变大小，而不是突变。这段文本足够长，可以触发换行和气泡尺寸的显著变化。"
+
+        val newText = if (item.text == longText) shortText else longText
+        updateMessageText(item, newText)
     }
 
     private fun setupRecycler() {
         // 创建适配器并配置列表滚动方向为自底向上（最新消息在底部）
-        adapter = TgTextMessageAdapter()
+        adapter = TgTextMessageAdapter { item, view ->
+            showEditMenu(item, view)
+        }
         binding.recyclerView.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false).apply {
             stackFromEnd = true
         }
@@ -52,14 +83,88 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
         }
     }
 
+    private fun showEditMenu(item: TgMessageItem.Text, view: android.view.View) {
+        val popup = android.widget.PopupMenu(this, view)
+        popup.menu.add("编辑消息")
+        popup.setOnMenuItemClickListener { menuItem ->
+            if (menuItem.title == "编辑消息") {
+                showEditDialog(item)
+                true
+            } else {
+                false
+            }
+        }
+        popup.show()
+    }
+
+    // 记录当前正在编辑的消息
+    private var editingMessageId: Long? = null
+
+    private fun showEditDialog(item: TgMessageItem.Text) {
+        editingMessageId = item.id
+        // 回显内容到输入框
+        binding.inputEdit.setText(item.text)
+        binding.inputEdit.setSelection(item.text.length)
+        // 聚焦并弹出键盘
+        binding.inputEdit.requestFocus()
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.showSoftInput(binding.inputEdit, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        
+        // 更改发送按钮文案为“编辑”
+        binding.sendButton.text = "编辑"
+    }
+
+    private fun updateMessageText(item: TgMessageItem.Text, newText: String) {
+        val hasExtra = !item.quote.isNullOrBlank() || !item.translation.isNullOrBlank() || !item.reactions.isNullOrBlank() || !item.userName.isNullOrBlank()
+        precomputeExecutor.execute {
+            val pack = TgTextLayoutPrecomputer.precompute(
+                text = newText,
+                time = item.time,
+                fromMe = item.fromMe,
+                containerWidth = recyclerWidth,
+                density = resources.displayMetrics.density,
+                hasExtraBlock = hasExtra,
+                inlineTimeWithText = true
+            )
+            runOnUiThread {
+                val idx = items.indexOfFirst { it is TgMessageItem.Text && it.id == item.id }
+                if (idx >= 0) {
+                    // 移除 TransitionManager，改用我们自己的动画系统（BaseTgMessageCell.runTransition）
+                    val old = items[idx] as TgMessageItem.Text
+                    val updated = old.copy(text = newText, layoutPack = pack)
+                    items[idx] = updated
+                    adapter.submitList(items.toList())
+                }
+            }
+        }
+    }
+
     private fun setupInput() {
-        // 发送按钮点击：读取输入框文本，清空输入，并追加一条“我发送”的文本消息
+        // 发送按钮点击：区分是发送新消息还是提交编辑
         binding.sendButton.setOnClickListener {
             val raw = binding.inputEdit.text?.toString().orEmpty()
             val sanitized = raw.replace("\r\n", " ").replace("\n", " ")
             val text = if (sanitized.isBlank()) "空消息" else sanitized
             binding.inputEdit.setText("")
-            addMessage(text, fromMe = true)
+            
+            val editId = editingMessageId
+            if (editId != null) {
+                // 提交编辑
+                val index = items.indexOfFirst { it.id == editId && it is TgMessageItem.Text }
+                if (index >= 0) {
+                    val item = items[index] as TgMessageItem.Text
+                    if (text != item.text) {
+                        updateMessageText(item, text)
+                    }
+                }
+                // 重置状态
+                editingMessageId = null
+                binding.sendButton.text = "发送"
+                // 键盘不收起，方便用户继续输入
+            } else {
+                // 发送新消息
+                addMessage(text, fromMe = true)
+            }
         }
         binding.demoAllButton.setOnClickListener {
             val options = arrayOf(

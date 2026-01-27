@@ -252,13 +252,20 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         val top = dpF(6f)
         bubbleRect.set(left, top, left + bubbleWidth, top + bubbleHeight)
         if (transitionParams.awaitingLayout) {
-            if (oldRect.isEmpty) {
-                transitionParams.startRect.set(bubbleRect)
-            } else {
-                transitionParams.startRect.set(oldRect)
+            // 如果 startRect 还没设置，使用旧的 rect（如果存在）或当前 rect
+            if (transitionParams.startRect.isEmpty) {
+                if (!oldRect.isEmpty) {
+                    transitionParams.startRect.set(oldRect)
+                } else {
+                    transitionParams.startRect.set(bubbleRect)
+                }
             }
+            // 设置 endRect 为新的 rect
             transitionParams.endRect.set(bubbleRect)
             transitionParams.awaitingLayout = false
+        } else if (transitionParams.isRunning) {
+            // 如果动画正在运行，更新 endRect（处理动画过程中的 layout）
+            transitionParams.endRect.set(bubbleRect)
         }
         lastBubbleRect.set(bubbleRect)
 
@@ -372,9 +379,38 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         transitionAnimator?.cancel()
         transitionParams.payloads = payloads
         transitionParams.animateChangeProgress = 0f
-        transitionParams.isRunning = true
+        transitionParams.isRunning = false // 先不启动，等 layout 完成
         transitionParams.awaitingLayout = true
+        // 保存当前 rect 作为 startRect（如果还没有保存过）
+        if (transitionParams.startRect.isEmpty && !lastBubbleRect.isEmpty) {
+            transitionParams.startRect.set(lastBubbleRect)
+        }
         requestLayout()
+        // 延迟启动动画，确保 layout 完成
+        post {
+            if (transitionParams.awaitingLayout) {
+                // 如果 layout 还没完成，再等一帧
+                post {
+                    startTransitionAnimation(payloads)
+                }
+            } else {
+                startTransitionAnimation(payloads)
+            }
+        }
+    }
+
+    private fun startTransitionAnimation(payloads: Set<String>) {
+        // 确保 startRect 和 endRect 都已设置
+        if (transitionParams.startRect.isEmpty || transitionParams.endRect.isEmpty) {
+            // 如果还没准备好，使用当前 rect
+            if (transitionParams.startRect.isEmpty) {
+                transitionParams.startRect.set(bubbleRect)
+            }
+            if (transitionParams.endRect.isEmpty) {
+                transitionParams.endRect.set(bubbleRect)
+            }
+        }
+        transitionParams.isRunning = true
         val animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 220L
             interpolator = PathInterpolator(0.2f, 0f, 0.2f, 1f)
@@ -401,7 +437,11 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     private fun finishTransition() {
         transitionParams.animateChangeProgress = 1f
         transitionParams.isRunning = false
+        transitionParams.awaitingLayout = false
         applyExtraViewProgress(transitionParams.payloads, 1f)
+        // 清理 rect，准备下次动画
+        transitionParams.startRect.setEmpty()
+        transitionParams.endRect.setEmpty()
         transitionAnimator = null
         invalidate()
     }
@@ -423,7 +463,10 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     }
 
     private fun getDrawBubbleRect(out: RectF): RectF {
-        if (transitionParams.isRunning && !transitionParams.startRect.isEmpty && !transitionParams.endRect.isEmpty) {
+        // 只有在动画运行且 startRect 和 endRect 都有效时才插值
+        if (transitionParams.isRunning && 
+            transitionParams.startRect.width() > 0 && transitionParams.startRect.height() > 0 &&
+            transitionParams.endRect.width() > 0 && transitionParams.endRect.height() > 0) {
             val p = transitionParams.animateChangeProgress
             out.set(
                 lerp(transitionParams.startRect.left, transitionParams.endRect.left, p),
@@ -432,6 +475,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
                 lerp(transitionParams.startRect.bottom, transitionParams.endRect.bottom, p)
             )
         } else {
+            // 动画未运行或数据无效时，使用当前 rect
             out.set(bubbleRect)
         }
         return out

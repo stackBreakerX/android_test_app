@@ -223,7 +223,14 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         // 气泡总高度 = 顶部块 + 内容 + 底部块 + 时间行（可选） + Live 预留 + 内边距
         val bubbleHeight = topBlocksH + contentHeight + bottomBlocksH + paddingTop + paddingBottom + liveReserve + if (timeWrapped) timeRowHeight else 0
         val totalHeight = bubbleHeight + dp(12f)
-        setMeasuredDimension(width, totalHeight)
+        // 当执行“向上不影响邻居”的背景尺寸变化动画时，如果是变大过程，保持测量高度为旧值，避免推动上方气泡
+        val animatingBackground = transitionParams.isRunning &&
+                transitionParams.startRect.height() > 0f &&
+                transitionParams.endRect.height() > 0f &&
+                transitionParams.animateChangeProgress < 1f
+        val keepOldHeight = animatingBackground && transitionParams.endRect.height() > transitionParams.startRect.height()
+        val measuredHeight = if (keepOldHeight) transitionParams.startRect.height().toInt() else totalHeight
+        setMeasuredDimension(width, measuredHeight)
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {

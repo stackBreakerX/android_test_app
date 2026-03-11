@@ -119,15 +119,19 @@
         <activity
             android:name=".module_thread.ThreadEntryActivity"
             android:exported="false" />
-
-        <activity android:name=".chat_tg.TgTextChatActivity"
-            android:exported="false"
-            />
         <activity
             android:name=".module_performance.PerformanceEntryActivity"
             android:exported="false" />
         <activity
             android:name=".module_performance.JankStatsActivity"
+            android:exported="false" />
+        <!-- 新增 ItemAnimation 列表演示页 -->
+        <activity
+            android:name=".listdemo.AnimListActivity"
+            android:exported="false" />
+        <!-- 新增动画模块入口页 -->
+        <activity
+            android:name=".module_animation.AnimationsEntryActivity"
             android:exported="false" />
         <!-- FileProvider 配置 -->
         <provider

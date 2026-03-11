@@ -69,7 +69,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
 
     val newTask = Task()
 
-    inner class Task: Runnable {
+    inner class Task : Runnable {
         override fun run() {
             // 此处执行任务 此处即使界面返回也会一直后台运行
             Log.i("djtest", "run: 该条打印信息仅测试锁屏情况下是否会执行task内容");
@@ -95,186 +95,83 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
 
         val recycler = binding.recyclerMain
         recycler.layoutManager = GridLayoutManager(this, 2)
-        val entries = buildEntries()
+        val entries = listOf(
+            MainEntry("Arouter Entry") { ArouterMainActivity.newInstance(this) },
+            MainEntry("Hilt Entry") { /* Hilt demo 已下线，如需可恢复 */ },
+            MainEntry("Coroutine Entry") { ChannelActivity.newInstance(this) },
+            MainEntry("RecyclerView Entry") {
+                ARouter.getInstance()
+                    .build(RecyclerViewActivity.PATH)
+                    .navigation(this)
+            },
+            MainEntry("Room Entry") {
+                ARouter.getInstance()
+                    .build(RoomActivity.PATH)
+                    .navigation(this)
+            },
+            MainEntry("View Entry") { CustomerViewActivity.newInstance(this) },
+            MainEntry("多媒体入库（合并入口）") {
+                startActivity(
+                    Intent(
+                        this,
+                        com.alex.studydemo.module_media.MediaEntryActivity::class.java
+                    )
+                )
+            },
+            MainEntry("Network Entry") { NetworkEntryActivity.newInstance(this) },
+            MainEntry("Performance Entry") {
+                startActivity(
+                    Intent(
+                        this,
+                        com.alex.studydemo.module_performance.PerformanceEntryActivity::class.java
+                    )
+                )
+            },
+            MainEntry("Test try catch") { testTryCatch(it) },
+            MainEntry(getString(R.string.full_text_entry)) {
+                com.alex.studydemo.module_view.FullTextActivity.newInstance(
+                    this
+                )
+            },
+            MainEntry("Two-Stage Header") {
+                com.alex.studydemo.module_view.TwoStageHeaderActivity.newInstance(
+                    this
+                )
+            },
+            MainEntry("TG 文本消息(对齐)") {
+                startActivity(
+                    Intent(
+                        this,
+                        com.alex.studydemo.chat_tg.TgTextChatActivity::class.java
+                    )
+                )
+            },
+            MainEntry("ItemAnimation 列表") {
+                startActivity(
+                    Intent(
+                        this,
+                        com.alex.studydemo.listdemo.AnimListActivity::class.java
+                    )
+                )
+            },
+            MainEntry("Animation Entry") {
+                startActivity(
+                    Intent(
+                        this,
+                        com.alex.studydemo.module_animation.AnimationsEntryActivity::class.java
+                    )
+                )
+            },
+        )
         recycler.adapter = MainEntryAdapter(entries)
-
-//        sPool.scheduleWithFixedDelay({
-//            try {
-//                // Run the command
-//                Log.e("date_time: ", "date_time start")
-//                val process = Runtime.getRuntime().exec("date +%s")
-//                val bufferedReader = BufferedReader(InputStreamReader(process.inputStream))
-//
-//                // Grab the results
-//                val log = StringBuilder()
-//                var line: String?
-//                while ((bufferedReader.readLine().also { line = it }) != null) {
-//                    log.append(line)
-//                }
-//                val time = Date(log.toString().toLong() * 1000)
-//
-//                TimeUtils.getNowDate()
-//                val elapsedRealtime = SystemClock.elapsedRealtime()
-//                Log.e("date_time: ", "date_time 11111 elapsedRealtime = $elapsedRealtime date = " + Date(elapsedRealtime))
-//
-//
-//                Log.e("date_time: ", "date_time = " + time.toString())
-//            } catch (e: IOException) {
-//                e.printStackTrace()
-//            }
-//        },0,1,TimeUnit.SECONDS)
-
-        // 当我们使用requestLocationUpdates时，我们需要实现LocationListener接口。
-        // 在LocationListen的回调onLocationChanged当中获取时间
-
-
-
-
-//        Thread({
-//            while (true) {
-//               Thread.sleep(2000)
-//                Log.d("111111", "onCreate() called 99999999999")
-//            }
-//
-//        }).start()
-
-//        handler.postDelayed(newTask,2000)
-//        lifecycleScope.launch {
-//            while (true) {
-//                delay(20000)
-//                Log.d("9999999999", "onCreate() called")
-//            }
-//        }
-
-//        lifecycleScope.launch(Dispatchers.IO) {
-//            delay(5000)
-//            withContext(Dispatchers.Main) {
-////                val stackBuilder: TaskStackBuilder = TaskStackBuilder.create(this@MainActivity)
-////                stackBuilder.addParentStack(ArouterMainActivity::class.java)
-////                stackBuilder.addNextIntent(Intent(this@MainActivity, ChannelActivity::class.java))
-////                stackBuilder.startActivities()
-//
-//                ArouterMainActivity.newInstance(this@MainActivity)
-//
-//
-//                val intent: Intent = Intent(this@MainActivity, ChannelActivity::class.java)
-//                intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-//                startActivity(intent)
-////                ChannelActivity.newInstance(this@MainActivity)
-//
-//
-//            }
-//        }
-    }
-
-    fun arouterDemo(view: View) {
-        ArouterMainActivity.newInstance(this)
-    }
-
-    fun hiltDemo(view: View) {
-//        HiltMainActivity.newInstance(this)
-    }
-
-    fun coroutineDemo(view: View) {
-        ChannelActivity.newInstance(this)
-//        ARouter.getInstance()
-//            .build(CoroutineDemoActivity.PATH)
-//            .navigation(this,REQUEST_CODE)
-
-//        CoroutineDemoActivity.newInstance(this)
-
-//        ARouter.getInstance()
-//            .build("/main/secondActivity")
-//            .withString("test","111111111")
-//            .navigation()
-    }
-
-    fun recyclerViewDemo(view: View) {
-        ARouter.getInstance()
-            .build(RecyclerViewActivity.PATH)
-            .navigation(this)
-    }
-
-    fun RoomDemo(view: View) {
-        ARouter.getInstance()
-            .build(RoomActivity.PATH)
-            .navigation(this)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         Toast.makeText(this, "跳转后返回$requestCode", Toast.LENGTH_LONG).show()
-//        HiltMainActivity.newInstance(this)
         finish()
     }
 
-    fun ViewDemo(view: View) {
-        CustomerViewActivity.newInstance(this)
-    }
-
-    fun imageWebpDemo(view: View) {
-        val intent = Intent(this, com.alex.studydemo.module_media.WebpConvertActivity::class.java)
-        startActivity(intent)
-    }
-
-    fun imageWebpLibDemo(view: View) {
-        val intent = android.content.Intent(this, com.alex.studydemo.module_media.WebpLibwebpActivity::class.java)
-        startActivity(intent)
-    }
-
-    fun imagePngConvertDemo(view: View) {
-        val intent = android.content.Intent(this, com.alex.studydemo.module_media.PngConvertActivity::class.java)
-        startActivity(intent)
-    }
-
-    fun imageJpgConvertDemo(view: View) {
-        val intent = android.content.Intent(this, com.alex.studydemo.module_media.JpgConvertActivity::class.java)
-        startActivity(intent)
-    }
-
-    fun pngAlphaCheckDemo(view: View) {
-        val intent = android.content.Intent(this, com.alex.studydemo.module_media.PngAlphaCheckActivity::class.java)
-        startActivity(intent)
-    }
-
-    fun imagePickerDemo(view: View) {
-        val intent = android.content.Intent(this, com.alex.studydemo.module_image.ImagePickerActivity::class.java)
-        startActivity(intent)
-    }
-
-    fun fullTextDemo(view: View) {
-        com.alex.studydemo.module_view.FullTextActivity.newInstance(this)
-    }
-
-    fun fastThumbnailDemo(view: View) {
-        val intent = android.content.Intent(this, com.alex.studydemo.module_image.FastThumbnailActivity::class.java)
-        startActivity(intent)
-    }
-
-    fun dngProcessDemo(view: View) {
-        val intent = android.content.Intent(this, com.alex.studydemo.module_image.DngProcessActivity::class.java)
-        startActivity(intent)
-    }
-
-    fun twoStageHeaderDemo(view: View) {
-        com.alex.studydemo.module_view.TwoStageHeaderActivity.newInstance(this)
-    }
-
-    // 合并的多媒体入库入口：跳转到二级页面
-    fun mediaInsertEntry(view: View) {
-        startActivity(Intent(this, com.alex.studydemo.module_media.MediaEntryActivity::class.java))
-    }
-
-    fun networkEntryDemo(view: View) {
-        NetworkEntryActivity.newInstance(this)
-    }
-
-    fun performanceEntry(view: View) {
-        startActivity(Intent(this, com.alex.studydemo.module_performance.PerformanceEntryActivity::class.java))
-    }
-    fun tgTextChatDemo(view: View) {
-        startActivity(Intent(this, com.alex.studydemo.chat_tg.TgTextChatActivity::class.java))
-    }
     fun testTryCatch(view: View) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -352,21 +249,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         val onClick: (View) -> Unit
     )
 
-    private fun buildEntries(): List<MainEntry> = listOf(
-        MainEntry("Arouter Entry", ::arouterDemo),
-        MainEntry("Hilt Entry", ::hiltDemo),
-        MainEntry("Coroutine Entry", ::coroutineDemo),
-        MainEntry("RecyclerView Entry", ::recyclerViewDemo),
-        MainEntry("Room Entry", ::RoomDemo),
-        MainEntry("View Entry", ::ViewDemo),
-        MainEntry("多媒体入库（合并入口）", ::mediaInsertEntry),
-        MainEntry("Network Entry", ::networkEntryDemo),
-        MainEntry("Performance Entry", ::performanceEntry),
-        MainEntry("Test try catch", ::testTryCatch),
-        MainEntry(getString(R.string.full_text_entry), ::fullTextDemo),
-        MainEntry("Two-Stage Header", ::twoStageHeaderDemo),
-        MainEntry("TG 文本消息(对齐)", ::tgTextChatDemo),
-    )
 
     private inner class MainEntryAdapter(
         private val items: List<MainEntry>

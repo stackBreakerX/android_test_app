@@ -88,6 +88,7 @@ class TgChatListItemAnimator : RecyclerView.ItemAnimator() {
         return false
     }
 
+
     override fun runPendingAnimations() {}
     override fun endAnimation(item: RecyclerView.ViewHolder) {
         item.itemView.animate().cancel()

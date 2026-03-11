@@ -133,6 +133,9 @@
         <activity
             android:name=".module_animation.AnimationsEntryActivity"
             android:exported="false" />
+        <activity
+            android:name=".module_animation.ChatInputAnimActivity"
+            android:exported="false" />
         <!-- FileProvider 配置 -->
         <provider
             android:name="androidx.core.content.FileProvider"

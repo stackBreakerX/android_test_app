@@ -38,7 +38,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     private val bubbleRect = RectF()
     private val lastBubbleRect = RectF()
     private val drawBubbleRect = RectF()
-    private var bubbleDrawable: TgMessageDrawable = TgMessageDrawable(true)
+    private val bubbleDrawable: TgMessageDrawable = TgMessageDrawable(context, true)
     private val transitionParams = TransitionParams()
     private var transitionAnimator: ValueAnimator? = null
 

@@ -7,7 +7,6 @@ import android.animation.ValueAnimator
 import android.graphics.Canvas
 import android.graphics.Path
 import android.graphics.RectF
-import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
@@ -25,11 +24,6 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : ViewGroup(context, attrs) {
-
-    // 文本/时间画笔（对齐 TG 的字号/颜色）
-    private val textPaint = TgTheme.chatMsgTextPaint
-    private val timePaintOut = TgTheme.chatTimePaintOut
-    private val timePaintIn = TgTheme.chatTimePaintIn
 
     // 当前消息时间、方向（out=自己发）
     private var timeText: String = ""
@@ -72,8 +66,6 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     protected open val clipRightInsetInDp: Float get() = 4f
     private val timeRowHeight = dp(16f)
     private val timeExtraWidth = dp(10f)
-    // 消息状态（双勾等）与时间之间的间距
-    private val statusGap = dp(6f)
     private val extraSpacing = dp(4f)
     private val maxBubbleWidthRatio = 0.72f
 
@@ -104,13 +96,12 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
 
     private var contentAttached = false
 
-    // 消息状态绘制与宽度计算（简化为文本“✓✓”，可替换为图标）
-    private val statusPaint = TextPaint(TextPaint.ANTI_ALIAS_FLAG).apply {
-        textSize = TgAndroidUtilities.dp(13f, resources.displayMetrics.density).toFloat()
-        color = 0xFF00B1BA.toInt()
-    }
-    private var showStatus: Boolean = true
-    private var statusText: String = "✓✓"
+    /** 为 true 时时间/状态 View 叠加在内容上方（图片/视频）；false 时置于气泡内（文本/文件） */
+    protected open val timeOverlay: Boolean = false
+
+    /** 公共时间+状态 View，兼容所有消息类型 */
+    private val timeStatusView = TgTimeStatusView(context)
+    private var timeStatusAttached = false
 
     init {
         setWillNotDraw(false)
@@ -126,12 +117,18 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             addView(contentView)
             contentAttached = true
         }
+        if (!timeStatusAttached) {
+            addView(timeStatusView)
+            timeStatusAttached = true
+        }
     }
 
     fun bindBase(time: String, out: Boolean) {
         timeText = time
         fromMe = out
         bubbleDrawable.setOut(out)
+        val tsStyle = if (timeOverlay) TgTimeStatusView.Style.BUBBLE else TgTimeStatusView.Style.PLAIN
+        timeStatusView.bind(time, out, tsStyle)
         requestLayout()
         invalidate()
     }
@@ -183,47 +180,57 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         )
 
-        val timePaint = if (fromMe) timePaintOut else timePaintIn
-        val timeWidth = timePaint.measureText(timeText).toInt()
-        val statusWidth = if (showStatus) statusPaint.measureText(statusText).toInt() else 0
+        // 度量 timeStatusView（数据已在 bindBase 中通过 bind() 设置）
+        timeStatusView.measure(
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        )
+        val tsContentW = timeStatusView.getContentWidth()
         var textWidth = contentAsTg.getContentWidth()
         var lastLineWidth = contentAsTg.getLastLineWidth()
 
-        // 文本行内时间：先用完整宽度判断是否能内联
-        timeInline = inlineTimeWithText &&
-            lastLineWidth + timeExtraWidth + timeWidth + statusWidth + (if (showStatus) statusGap else 0) <= contentWidth
-        timeWrapped = inlineTimeWithText && !timeInline
-
-        // 如果需要行内时间，则为文本预留时间宽度，避免重叠
-        if (inlineTimeWithText && timeInline && textContentView != null) {
-            val reserve = timeWidth + timeExtraWidth + statusWidth + (if (showStatus) statusGap else 0)
-            textContentView.setReservedRight(reserve)
-            textContentView.measure(
-                MeasureSpec.makeMeasureSpec(max(1, contentWidth), MeasureSpec.AT_MOST),
-                MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-            )
-            textWidth = contentAsTg.getContentWidth()
-            lastLineWidth = contentAsTg.getLastLineWidth()
-            // 重新判断内联条件，避免预留空间后仍然重叠
-            timeInline = lastLineWidth + timeExtraWidth + timeWidth + statusWidth + (if (showStatus) statusGap else 0) <= contentWidth
+        if (timeOverlay) {
+            // 媒体叠加：时间 View 浮在内容上，不占用气泡宽度/高度
+            timeInline = false
+            timeWrapped = false
+        } else {
+            // 文本行内时间：先用完整宽度判断是否能内联
+            timeInline = inlineTimeWithText &&
+                lastLineWidth + timeExtraWidth + tsContentW <= contentWidth
             timeWrapped = inlineTimeWithText && !timeInline
-            if (!timeInline) {
-                // 退回到“时间换行”的布局，释放预留宽度
-                textContentView.setReservedRight(0)
+
+            // 如果需要行内时间，则为文本预留时间宽度，避免重叠
+            if (inlineTimeWithText && timeInline && textContentView != null) {
+                val reserve = (timeExtraWidth + tsContentW).toInt()
+                textContentView.setReservedRight(reserve)
                 textContentView.measure(
                     MeasureSpec.makeMeasureSpec(max(1, contentWidth), MeasureSpec.AT_MOST),
                     MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
                 )
                 textWidth = contentAsTg.getContentWidth()
                 lastLineWidth = contentAsTg.getLastLineWidth()
+                // 重新判断内联条件，避免预留空间后仍然重叠
+                timeInline = lastLineWidth + timeExtraWidth + tsContentW <= contentWidth
+                timeWrapped = inlineTimeWithText && !timeInline
+                if (!timeInline) {
+                    // 退回到”时间换行”的布局，释放预留宽度
+                    textContentView.setReservedRight(0)
+                    textContentView.measure(
+                        MeasureSpec.makeMeasureSpec(max(1, contentWidth), MeasureSpec.AT_MOST),
+                        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+                    )
+                    textWidth = contentAsTg.getContentWidth()
+                    lastLineWidth = contentAsTg.getLastLineWidth()
+                }
             }
         }
 
-        val inlineWidth = lastLineWidth + timeExtraWidth + timeWidth + statusWidth + (if (showStatus) statusGap else 0)
+        val inlineWidthF = lastLineWidth.toFloat() + timeExtraWidth.toFloat() + tsContentW
         val bubbleContentWidth = when {
-            inlineTimeWithText && timeInline -> max(textWidth, inlineWidth)
+            timeOverlay -> textWidth
+            inlineTimeWithText && timeInline -> max(textWidth, inlineWidthF.toInt())
             inlineTimeWithText && timeWrapped -> max(textWidth, contentWidth)
-            else -> max(textWidth, timeWidth)
+            else -> max(textWidth, tsContentW.toInt())
         }
 
         val bubbleWidth = bubbleContentWidth + getPaddingStartLocal() + getPaddingEndLocal()
@@ -285,18 +292,17 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         
         if (!isAnimating) {
             // 只有在非动画状态下才重新计算 bubbleRect
-            val timePaint = if (fromMe) timePaintOut else timePaintIn
             val maxBubbleWidth = (width * maxBubbleWidthRatio).toInt()
             val contentWidth = maxBubbleWidth - (getPaddingStartLocal() + getPaddingEndLocal())
-            val timeWidth = timePaint.measureText(timeText).toInt()
-            val statusWidth = if (showStatus) statusPaint.measureText(statusText).toInt() else 0
+            val tsContentW = timeStatusView.getContentWidth()
             val textWidth = contentAsTg.getContentWidth()
             val lastLineWidth = contentAsTg.getLastLineWidth()
-            val inlineWidth = lastLineWidth + timeExtraWidth + timeWidth + statusWidth + (if (showStatus) statusGap else 0)
+            val inlineWidthF = lastLineWidth.toFloat() + timeExtraWidth.toFloat() + tsContentW
             val bubbleContentWidth = when {
-                inlineTimeWithText && timeInline -> max(textWidth, inlineWidth)
+                timeOverlay -> textWidth
+                inlineTimeWithText && timeInline -> max(textWidth, inlineWidthF.toInt())
                 inlineTimeWithText && timeWrapped -> max(textWidth, contentWidth)
-                else -> max(textWidth, timeWidth)
+                else -> max(textWidth, tsContentW.toInt())
             }
             val bubbleWidth = bubbleContentWidth + getPaddingStartLocal() + getPaddingEndLocal()
             val contentHeight = contentView.measuredHeight
@@ -427,6 +433,27 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             }
             child.layout(liveX, ly, liveX + child.measuredWidth, ly + child.measuredHeight)
         }
+
+        // 5) 时间+状态 View 定位（所有消息类型公用，由 TgTimeStatusView 统一绘制）
+        val tsW = timeStatusView.measuredWidth
+        val tsH = timeStatusView.measuredHeight
+        if (timeOverlay) {
+            // 媒体叠加模式：定位在图片内容区域右下角
+            // imgRight/imgBottom 是去掉尾巴 inset 后的有效图片区域边界
+            val tiEnd    = tailInsetEnd(fromMe)
+            val tiBottom = tailInsetBottom()
+            val imgRight  = layoutRect.right  - getPaddingEndLocal()  - tiEnd
+            val imgBottom = layoutRect.bottom - bubblePaddingBottom   - tiBottom
+            val marginPx  = dpF(8f)
+            val tsX = (imgRight  - marginPx - tsW).toInt()
+            val tsY = (imgBottom - marginPx - tsH).toInt()
+            timeStatusView.layout(tsX, tsY, tsX + tsW, tsY + tsH)
+        } else {
+            // 气泡内模式（文本/文件）：定位在气泡右下角内边距内
+            val tsX = (layoutRect.right - getPaddingEndLocal() - tsW).toInt()
+            val tsY = (layoutRect.bottom - bubblePaddingBottom - tsH).toInt()
+            timeStatusView.layout(tsX, tsY, tsX + tsW, tsY + tsH)
+        }
     }
 
     override fun dispatchDraw(canvas: Canvas) {
@@ -467,8 +494,6 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         // 子 view 的布局位置基于 bubbleRect（最终位置），绘制时直接绘制即可
         super.dispatchDraw(canvas)
         canvas.restore()
-        // 绘制时间与状态（使用过渡矩形坐标）
-        drawTime(canvas)
     }
 
     private fun drawBubble(canvas: Canvas) {
@@ -480,69 +505,6 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             rect.bottom.toInt()
         )
         bubbleDrawable.draw(canvas)
-    }
-
-    /**
-     * 图片等媒体消息可在时间文字下绘制背景（渐变或气泡）。
-     * @param timeX 时间文字起始 X（基线坐标系）
-     * @param timeY 时间文字基线 Y
-     * @param timeWidth 时间文字宽度（px）
-     * @param timeRight 时间+状态区域最右侧 X（= bubbleRect.right - paddingEnd）
-     */
-    protected open fun drawTimeBackground(
-        canvas: Canvas, bubbleRect: RectF,
-        timeX: Float, timeY: Float,
-        timeWidth: Float, timeRight: Float
-    ) {}
-
-    protected open fun getTimePaintForMessage(): TextPaint = if (fromMe) timePaintOut else timePaintIn
-
-    protected open fun getStatusPaintForMessage(): TextPaint = statusPaint
-
-    /**
-     * 子类可重写，以自定义状态图标绘制（默认绘制 statusText 文本）。
-     * @param statusX 图标区域左边界 X
-     * @param statusY 基线 Y（与时间文字对齐）
-     * @param statusWidth 图标区域宽度（与测量宽度一致）
-     */
-    protected open fun drawStatusIcon(
-        canvas: Canvas,
-        statusX: Float, statusY: Float,
-        statusWidth: Float,
-        paint: TextPaint
-    ) {
-        canvas.drawText(statusText, statusX, statusY, paint)
-    }
-
-    private fun drawTime(canvas: Canvas) {
-        val timePaint = getTimePaintForMessage()
-        val statusPaintDraw = getStatusPaintForMessage()
-        val timeWidthF = timePaint.measureText(timeText)
-        val statusWidthF = if (showStatus) statusPaintDraw.measureText(statusText) else 0f
-        val rect = getDrawBubbleRect(drawBubbleRect)
-        val lastBaseline = contentAsTg.getLastLineBaseline()?.let { it + rect.top + bubblePaddingTop }
-        val contentWidth = rect.width() - getPaddingStartLocal() - getPaddingEndLocal()
-        val lastLineWidth = contentAsTg.getLastLineWidth().toFloat()
-        val inlineAllowed = inlineTimeWithText && timeInline &&
-            lastLineWidth + timeExtraWidth + timeWidthF + (if (showStatus) statusWidthF + statusGap else 0f) <= contentWidth + 0.5f
-        // 时间与消息状态均右下角对齐：最右为状态，左侧为时间
-        val timeX = rect.right - getPaddingEndLocal().toFloat() - (if (showStatus) statusWidthF + statusGap else 0f) - timeWidthF
-        val timeY = if (inlineAllowed) {
-            // 行内时间：基线略低于末行
-            timeAnchor.getTimeY(rect, lastBaseline, timePaint, bubblePaddingBottom.toFloat())
-        } else {
-            // 行内条件不满足时，按底部时间行绘制避免重叠
-            TgTimeAnchorBottomRight.getTimeY(rect, lastBaseline, timePaint, bubblePaddingBottom.toFloat())
-        }
-        val timeRight = rect.right - getPaddingEndLocal().toFloat()
-        drawTimeBackground(canvas, rect, timeX, timeY, timeWidthF, timeRight)
-        // 位置基于动画插值后的 rect，会跟随气泡大小变化
-        canvas.drawText(timeText, timeX, timeY, timePaint)
-        // 绘制消息状态（紧随时间右侧，子类可重写为图标路径）
-        if (showStatus && statusWidthF > 0f) {
-            val statusX = rect.right - getPaddingEndLocal().toFloat() - statusWidthF
-            drawStatusIcon(canvas, statusX, timeY, statusWidthF, statusPaintDraw)
-        }
     }
 
     /** 可选子 View 测量（为空返回 0，高度用于累加） */

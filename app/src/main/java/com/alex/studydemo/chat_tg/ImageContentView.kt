@@ -13,18 +13,33 @@ import kotlin.math.max
 
 /**
  * 图片内容视图
- * - 以固定比例（3:4）测量内容尺寸；无 URI 时灰色占位，有 URI 时解码并等比铺满绘制
+ * - 自适应宽高比：默认 1:1（对齐 Figma 单图气泡设计），图片加载后按实际比例更新
+ * - 比例范围钳制：[MIN_RATIO, MAX_RATIO]，避免极端尺寸
+ * - 无 URI 时灰色占位，有 URI 时解码并 CENTER_CROP 绘制
  */
 class ImageContentView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : View(context, attrs), TgContentView {
 
+    companion object {
+        /** 默认 1:1，与 Figma 单图气泡（277×273）对齐 */
+        private const val DEFAULT_RATIO = 1.0f
+        /** 宽高比下限：约 16:9 横屏（height/width = 0.56） */
+        private const val MIN_RATIO = 0.56f
+        /** 宽高比上限：约 3:4 竖屏（height/width = 1.33） */
+        private const val MAX_RATIO = 1.33f
+    }
+
     private val placeholderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFDDDDDD.toInt() }
     private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true }
     private val drawMatrix = Matrix()
+
     private var contentWidth = 0
     private var contentHeight = 0
+
+    /** 当前目标宽高比（height/width），默认 1:1 */
+    private var targetRatio: Float = DEFAULT_RATIO
 
     private var imageUri: Uri? = null
     private var bitmap: Bitmap? = null
@@ -36,45 +51,68 @@ class ImageContentView @JvmOverloads constructor(
         bitmap = null
         loadGeneration++
         if (uri == null) {
-            invalidate()
+            if (targetRatio != DEFAULT_RATIO) {
+                targetRatio = DEFAULT_RATIO
+                requestLayout()
+            } else {
+                invalidate()
+            }
             return
         }
         val gen = loadGeneration
         val cr = context.applicationContext.contentResolver
+        val maxSidePx = (1600 * resources.displayMetrics.density).toInt().coerceAtLeast(720)
         Thread {
-            val bmp = decodeBitmap(cr, uri, maxSidePx = (1600 * resources.displayMetrics.density).toInt().coerceAtLeast(720))
+            val result = decodeWithRatio(cr, uri, maxSidePx)
             post {
                 if (gen == loadGeneration && imageUri == uri) {
-                    bitmap = bmp
-                    invalidate()
+                    val ratioChanged = result.ratio != targetRatio
+                    targetRatio = result.ratio
+                    bitmap = result.bitmap
+                    // 比例变化时需要重新测量布局；否则只刷新绘制
+                    if (ratioChanged) requestLayout() else invalidate()
                 }
             }
         }.start()
     }
 
-    private fun decodeBitmap(cr: android.content.ContentResolver, uri: Uri, maxSidePx: Int): Bitmap? {
+    private data class DecodeResult(val bitmap: Bitmap?, val ratio: Float)
+
+    /**
+     * 先读取图片尺寸元数据（inJustDecodeBounds）计算目标比例，再完整解码。
+     * 复用同一 Options 流程，避免重复打开流。
+     */
+    private fun decodeWithRatio(
+        cr: android.content.ContentResolver,
+        uri: Uri,
+        maxSidePx: Int
+    ): DecodeResult {
         return try {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-            var w = bounds.outWidth
-            var h = bounds.outHeight
-            if (w <= 0 || h <= 0) return null
+            val bw = bounds.outWidth
+            val bh = bounds.outHeight
+            val ratio = if (bw > 0 && bh > 0)
+                (bh.toFloat() / bw.toFloat()).coerceIn(MIN_RATIO, MAX_RATIO)
+            else DEFAULT_RATIO
             var sample = 1
-            while (max(w, h) / sample > maxSidePx) sample *= 2
+            val maxSide = max(bw.coerceAtLeast(1), bh.coerceAtLeast(1))
+            while (maxSide / sample > maxSidePx) sample *= 2
             val opts = BitmapFactory.Options().apply {
                 inSampleSize = sample
                 inPreferredConfig = Bitmap.Config.RGB_565
             }
-            cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+            val bmp = cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+            DecodeResult(bmp, ratio)
         } catch (_: Exception) {
-            null
+            DecodeResult(null, DEFAULT_RATIO)
         }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val maxWidth = MeasureSpec.getSize(widthMeasureSpec)
         contentWidth = maxWidth
-        contentHeight = (maxWidth * 3f / 4f).toInt()
+        contentHeight = (maxWidth * targetRatio).toInt().coerceAtLeast(1)
         setMeasuredDimension(contentWidth, contentHeight)
     }
 

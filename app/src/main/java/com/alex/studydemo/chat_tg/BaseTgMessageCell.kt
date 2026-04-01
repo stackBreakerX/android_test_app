@@ -499,6 +499,21 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
 
     protected open fun getStatusPaintForMessage(): TextPaint = statusPaint
 
+    /**
+     * 子类可重写，以自定义状态图标绘制（默认绘制 statusText 文本）。
+     * @param statusX 图标区域左边界 X
+     * @param statusY 基线 Y（与时间文字对齐）
+     * @param statusWidth 图标区域宽度（与测量宽度一致）
+     */
+    protected open fun drawStatusIcon(
+        canvas: Canvas,
+        statusX: Float, statusY: Float,
+        statusWidth: Float,
+        paint: TextPaint
+    ) {
+        canvas.drawText(statusText, statusX, statusY, paint)
+    }
+
     private fun drawTime(canvas: Canvas) {
         val timePaint = getTimePaintForMessage()
         val statusPaintDraw = getStatusPaintForMessage()
@@ -523,11 +538,10 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         drawTimeBackground(canvas, rect, timeX, timeY, timeWidthF, timeRight)
         // 位置基于动画插值后的 rect，会跟随气泡大小变化
         canvas.drawText(timeText, timeX, timeY, timePaint)
-        // 绘制消息状态（紧随时间右侧）
+        // 绘制消息状态（紧随时间右侧，子类可重写为图标路径）
         if (showStatus && statusWidthF > 0f) {
             val statusX = rect.right - getPaddingEndLocal().toFloat() - statusWidthF
-            val statusY = timeY
-            canvas.drawText(statusText, statusX, statusY, statusPaintDraw)
+            drawStatusIcon(canvas, statusX, timeY, statusWidthF, statusPaintDraw)
         }
     }
 

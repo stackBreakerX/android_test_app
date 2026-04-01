@@ -32,19 +32,31 @@ class TgMessageDrawable(context: Context, private var out: Boolean) : Drawable()
         invalidateSelf()
     }
 
+    /**
+     * 文本消息用 [Theme.MessageDrawable.TYPE_TEXT]（带尾巴），图片/视频/文件等媒体样式用 [Theme.MessageDrawable.TYPE_MEDIA]（圆角无尾巴）。
+     */
+    fun setBubbleType(type: Int) {
+        impl.setType(type)
+        invalidateSelf()
+    }
+
     override fun draw(canvas: Canvas) {
-        Theme.bubbleRadiusDp = TgSharedConfig.bubbleRadius
-        val b = bounds
-        impl.setBounds(b.left, b.top, b.right, b.bottom)
+        syncImplGeometry()
         impl.draw(canvas)
         canvas.drawPath(impl.makePath(), strokePaint)
     }
 
-    /** 返回当前 bounds 对应的气泡路径，用于裁剪内容区域 */
-    fun buildClipPath(): Path {
+    /** 与 Telegram 一致：同步列表语义高度后路径才包含尾巴；否则 makePath 会裁掉底边 */
+    private fun syncImplGeometry() {
         Theme.bubbleRadiusDp = TgSharedConfig.bubbleRadius
         val b = bounds
         impl.setBounds(b.left, b.top, b.right, b.bottom)
+        impl.setTop(b.top, b.width(), b.height(), false, false)
+    }
+
+    /** 返回当前 bounds 对应的气泡路径，用于按气泡形状（圆角+尾巴）裁剪子 View */
+    fun buildClipPath(): Path {
+        syncImplGeometry()
         return Path(impl.makePath())
     }
 

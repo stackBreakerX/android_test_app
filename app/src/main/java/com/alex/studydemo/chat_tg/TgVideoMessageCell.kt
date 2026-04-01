@@ -2,6 +2,7 @@ package com.alex.studydemo.chat_tg
 
 import android.content.Context
 import android.util.AttributeSet
+import com.alex.studydemo.telegram.Theme
 
 /**
  * 视频消息气泡 Cell
@@ -12,6 +13,8 @@ class TgVideoMessageCell @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : BaseTgMessageCell(context, attrs) {
+
+    override val bubbleDrawableType: Int = Theme.MessageDrawable.TYPE_MEDIA
 
     /** 视频内容视图 */
     private val videoContentView = VideoContentView(context)

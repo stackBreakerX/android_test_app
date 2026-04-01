@@ -202,6 +202,8 @@ dependencies {
 //
 //    kapt 'com.facebook.litho:lbitho-sections-processor:0.50.2'
 
+    implementation 'androidx.activity:activity-ktx:1.9.3'
+
     api project(path: ':Lib')
 //    implementation project(path: ':tg')
 

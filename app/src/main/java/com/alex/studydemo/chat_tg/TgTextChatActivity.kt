@@ -2,17 +2,21 @@ package com.alex.studydemo.chat_tg
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.alex.studydemo.base.BaseActivity
 import com.alex.studydemo.databinding.ActivityTgTextChatBinding
+import com.alex.studydemo.telegram.Theme
 import java.util.concurrent.Executors
 
 /**
  * TG 文本聊天示例页面
  * - 仅演示文本消息的渲染、输入与发送流程
- * - 使用自定义的气泡布局与时间绘制策略，贴近 Telegram 的视觉与交互
+ * - 气泡背景由移植的 [Theme.MessageDrawable]（经 [TgMessageDrawable]）绘制；见 [initTelegramBubbleTheme]
  */
 class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
 
@@ -25,16 +29,46 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
     private var recyclerWidth: Int = 0
     private val precomputeExecutor = Executors.newSingleThreadExecutor()
 
+    /** 从相册选 1～2 张图：一张为全宽单图，两张为并排双图（对齐 Telegram 相册） */
+    private val pickImageLauncher = registerForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(2)
+    ) { uris: List<Uri> ->
+        if (uris.isEmpty()) return@registerForActivityResult
+        val first = uris[0]
+        val second = uris.getOrNull(1)
+        items.add(
+            makeImageItem(
+                fromMe = true,
+                time = formatTime(nextId),
+                imageUri = first,
+                secondImageUri = second
+            )
+        )
+        adapter.submitList(items.toList()) {
+            binding.recyclerView.scrollToPosition(adapter.itemCount - 1)
+        }
+    }
+
     override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityTgTextChatBinding =
         ActivityTgTextChatBinding.inflate(inflater)
 
     override fun onViewCreated(savedInstanceState: Bundle?) {
+        initTelegramBubbleTheme()
         // 设置标题并初始化页面结构
         title = "TG 文本消息"
         setupRecycler()
         setupInput()
         setupFuncTest()
         seedMessages()
+    }
+
+    /**
+     * 在本页进入时统一初始化 TG 画笔密度与 [Theme] 气泡圆角，保证列表首次测量前即与 [TgSharedConfig] 一致。
+     */
+    private fun initTelegramBubbleTheme() {
+        val density = resources.displayMetrics.density
+        TgTheme.init(density)
+        Theme.bubbleRadiusDp = TgSharedConfig.bubbleRadius
     }
 
     private fun setupFuncTest() {
@@ -177,13 +211,19 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
                 "用户名 + 引用 + 正文",
                 "用户名 + 正文 + 翻译",
                 "用户名 + 引用 + 正文 + 翻译 + 点赞",
-                "图片消息",
+                "图片消息（相册，可选 2 张）",
                 "视频消息",
                 "文件消息"
             )
             androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle("选择要发送的内容")
                 .setItems(options) { _, which ->
+                    if (which == 6) {
+                        pickImageLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                        return@setItems
+                    }
                     when (which) {
                         0 -> {
                             val text = "演示：Cell 中所有元素"
@@ -204,9 +244,6 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
                         5 -> {
                             items.add(makeTextItem("用户名+引用+正文+翻译+点赞", true, formatTime(nextId), "Jane Cooper", "引用内容示例", "翻译内容示例", "👍 ❤️ 🎉"))
                         }
-                        6 -> {
-                            items.add(TgMessageItem.Image(id = nextId++, fromMe = true, time = formatTime(nextId)))
-                        }
                         7 -> {
                             items.add(TgMessageItem.Video(id = nextId++, fromMe = true, time = formatTime(nextId)))
                         }
@@ -225,13 +262,12 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
     private fun seedMessages() {
         // 预置若干条不同类型的消息，便于演示多种气泡与时间布局
         items.add(makeTextItem("这个页面只保留 TG 文本消息的渲染逻辑", false, "09:41", "Ralph Edwards", "引用文本示例", "这是翻译文本的示例", "👍 ❤️ 🎉"))
-        items.add(
-            TgMessageItem.Image(
-                id = nextId++,
-                fromMe = true,
-                time = "09:42"
-            )
-        )
+        // 多条图片：右/左交替；含一条双列占位（参考 Telegram 并排相册 + 底部时间渐变）
+        items.add(makeImageItem(fromMe = true, time = "09:42"))
+        items.add(makeImageItem(fromMe = false, time = "09:42"))
+        items.add(makeImageItem(fromMe = true, time = "11:53", albumDual = true))
+        items.add(makeImageItem(fromMe = false, time = "09:43"))
+        items.add(makeImageItem(fromMe = true, time = "09:44"))
         items.add(
             TgMessageItem.Video(
                 id = nextId++,
@@ -289,6 +325,21 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
             layoutPack = null
         )
     }
+
+    private fun makeImageItem(
+        fromMe: Boolean,
+        time: String,
+        imageUri: Uri? = null,
+        secondImageUri: Uri? = null,
+        albumDual: Boolean = false
+    ) = TgMessageItem.Image(
+        id = nextId++,
+        fromMe = fromMe,
+        time = time,
+        imageUri = imageUri,
+        secondImageUri = secondImageUri,
+        albumDual = albumDual
+    )
 
     private fun schedulePrecompute(id: Long, text: String, fromMe: Boolean, time: String, hasExtra: Boolean) {
         val containerWidth = recyclerWidth

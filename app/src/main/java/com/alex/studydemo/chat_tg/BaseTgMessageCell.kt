@@ -5,13 +5,14 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.graphics.Canvas
- import android.graphics.Path
+import android.graphics.Path
 import android.graphics.RectF
 import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.PathInterpolator
+import com.alex.studydemo.telegram.Theme
 import kotlin.math.max
 
 /**
@@ -34,6 +35,9 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     private var timeText: String = ""
     private var fromMe: Boolean = true
 
+    /** 子类（如图片气泡）绘制时间/渐变时读取方向 */
+    protected val isOutgoing: Boolean get() = fromMe
+
     // 气泡区域与绘制器
     private val bubbleRect = RectF()
     private val lastBubbleRect = RectF()
@@ -42,19 +46,39 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     private val transitionParams = TransitionParams()
     private var transitionAnimator: ValueAnimator? = null
 
-    // TG 文本气泡内边距与时间布局参数
-    private val paddingStartOut = dp(12f)
-    private val paddingEndOut = dp(16f)
-    private val paddingStartIn = dp(16f)
-    private val paddingEndIn = dp(12f)
-    private val paddingTop = dp(8f)
-    private val paddingBottom = dp(8f)
+    // TG 文本气泡内边距与时间布局参数（图片等子类可收紧使内容铺满气泡）
+    protected open val bubblePaddingStartOut: Int get() = dp(12f)
+    protected open val bubblePaddingEndOut: Int get() = dp(16f)
+    protected open val bubblePaddingStartIn: Int get() = dp(16f)
+    protected open val bubblePaddingEndIn: Int get() = dp(12f)
+    protected open val bubblePaddingTop: Int get() = dp(8f)
+    protected open val bubblePaddingBottom: Int get() = dp(8f)
+    /**
+     * 为 true 时子 View 按 [TgMessageDrawable.buildClipPath] 裁剪（圆角+尾巴轮廓）。
+     * 图片消息应开启；文本消息仍用矩形裁剪以兼容行内时间区域。
+     */
+    protected open val clipChildrenToBubblePath: Boolean get() = false
+
+    /** 图片等：在尾巴一侧留出空隙，避免内容盖住尾巴（相对气泡内边的额外 inset，单位 px） */
+    protected open fun tailInsetStart(fromMe: Boolean): Int = 0
+    protected open fun tailInsetEnd(fromMe: Boolean): Int = 0
+    protected open fun tailInsetBottom(): Int = 0
+
+    /** 子视图裁剪：发出消息右侧默认多留 10dp 给行内时间；图片消息可改为 4dp 与左侧对称 */
+    protected open val clipLeftInsetDp: Float get() = 4f
+    protected open val clipTopInsetDp: Float get() = 4f
+    protected open val clipBottomInsetDp: Float get() = 4f
+    protected open val clipRightInsetOutDp: Float get() = 10f
+    protected open val clipRightInsetInDp: Float get() = 4f
     private val timeRowHeight = dp(16f)
     private val timeExtraWidth = dp(10f)
     // 消息状态（双勾等）与时间之间的间距
     private val statusGap = dp(6f)
     private val extraSpacing = dp(4f)
     private val maxBubbleWidthRatio = 0.72f
+
+    /** 气泡形状：文本为带尾巴的 [Theme.MessageDrawable.TYPE_TEXT]，子类可改为 [Theme.MessageDrawable.TYPE_MEDIA] */
+    protected open val bubbleDrawableType: Int = Theme.MessageDrawable.TYPE_TEXT
 
     // 时间定位策略（文本内联 / 右下角）
     protected abstract val timeAnchor: TgTimeAnchor
@@ -95,6 +119,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         setClipToPadding(true)
     }
     override fun onAttachedToWindow() {
+        bubbleDrawable.setBubbleType(bubbleDrawableType)
         super.onAttachedToWindow()
         // 子类的 contentView 在构造完成后再挂载，避免空指针
         if (!contentAttached) {
@@ -224,7 +249,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         val liveReserve = if (liveH > 0) liveH + extraSpacing else 0
 
         // 气泡总高度 = 顶部块 + 内容 + 底部块 + 时间行（可选） + Live 预留 + 内边距
-        val bubbleHeight = topBlocksH + contentHeight + bottomBlocksH + paddingTop + paddingBottom + liveReserve + if (timeWrapped) timeRowHeight else 0
+        val bubbleHeight = topBlocksH + contentHeight + bottomBlocksH + bubblePaddingTop + bubblePaddingBottom + liveReserve + if (timeWrapped) timeRowHeight else 0
         val totalHeight = bubbleHeight + dp(12f)
         
         // 当执行“向上不影响邻居”的背景尺寸变化动画时，如果是变大过程，保持测量高度为旧值，避免推动上方气泡
@@ -282,7 +307,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             val bottomBlocksH = if (translateH > 0) translateH + extraSpacing else 0
             val liveH = liveView?.measuredHeight ?: 0
             val liveReserve = if (liveH > 0) liveH + extraSpacing else 0
-            val bubbleHeight = topBlocksH + contentHeight + bottomBlocksH + paddingTop + paddingBottom + liveReserve + if (timeWrapped) timeRowHeight else 0
+            val bubbleHeight = topBlocksH + contentHeight + bottomBlocksH + bubblePaddingTop + bubblePaddingBottom + liveReserve + if (timeWrapped) timeRowHeight else 0
             val left = if (fromMe) width - bubbleWidth - dpF(8f) else dpF(8f)
             val top = dpF(6f)
             bubbleRect.set(left, top, left + bubbleWidth, top + bubbleHeight)
@@ -328,7 +353,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         }
         
         // 1) 顶部：用户名
-        var cy = (layoutRect.top + paddingTop).toInt()
+        var cy = (layoutRect.top + bubblePaddingTop).toInt()
         val cx = if (fromMe) {
             // 右侧消息：固定在气泡左边（左对齐），跟随动画插值后的位置
             (layoutRect.left + getPaddingStartLocal()).toInt()
@@ -368,11 +393,14 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
             // 左侧消息：固定在气泡右边（右对齐），跟随动画插值后的位置
             (layoutRect.right - getPaddingEndLocal() - contentLayoutWidth).toInt()
         }
+        val tiStart = tailInsetStart(fromMe)
+        val tiEnd = tailInsetEnd(fromMe)
+        val tiBottom = tailInsetBottom()
         contentView.layout(
-            contentX,
+            contentX + tiStart,
             cy,
-            contentX + contentLayoutWidth,
-            cy + contentView.measuredHeight
+            contentX + contentLayoutWidth - tiEnd,
+            cy + contentView.measuredHeight - tiBottom
         )
         cy += contentView.measuredHeight + extraSpacing
 
@@ -389,7 +417,7 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         }
         // 4) LiveView 锚定气泡底部左侧
         liveView?.let { child ->
-            val ly = (layoutRect.bottom - paddingBottom - child.measuredHeight).toInt()
+            val ly = (layoutRect.bottom - bubblePaddingBottom - child.measuredHeight).toInt()
             val liveX = if (fromMe) {
                 // 右侧消息：固定在气泡左边（左对齐），跟随动画插值后的位置
                 (layoutRect.left + getPaddingStartLocal()).toInt()
@@ -406,20 +434,33 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         drawBubble(canvas)
         // 获取当前过渡中的气泡绘制矩形（插值后），用于裁剪
         val rect = getDrawBubbleRect(drawBubbleRect)
-        // 参考 Telegram：裁剪区域基于动画后的气泡边界（rect），确保文本在动画过程中被正确裁剪
-        // 参考 Telegram：r.left + dp(4), r.top + dp(4), r.right - dp(10/4), r.bottom - dp(4)
         canvas.save()
-        if (fromMe) {
-            // 右侧消息：右边距 dp(10)（为时间/状态预留更多空间）
+        if (clipChildrenToBubblePath) {
+            try {
+                // bounds 已在 drawBubble 中设置
+                canvas.clipPath(bubbleDrawable.buildClipPath())
+            } catch (_: Exception) {
+                if (fromMe) {
+                    canvas.clipRect(
+                        rect.left + dpF(clipLeftInsetDp), rect.top + dpF(clipTopInsetDp),
+                        rect.right - dpF(clipRightInsetOutDp), rect.bottom - dpF(clipBottomInsetDp)
+                    )
+                } else {
+                    canvas.clipRect(
+                        rect.left + dpF(clipLeftInsetDp), rect.top + dpF(clipTopInsetDp),
+                        rect.right - dpF(clipRightInsetInDp), rect.bottom - dpF(clipBottomInsetDp)
+                    )
+                }
+            }
+        } else if (fromMe) {
             canvas.clipRect(
-                rect.left + dpF(4f), rect.top + dpF(4f),
-                rect.right - dpF(10f), rect.bottom - dpF(4f)
+                rect.left + dpF(clipLeftInsetDp), rect.top + dpF(clipTopInsetDp),
+                rect.right - dpF(clipRightInsetOutDp), rect.bottom - dpF(clipBottomInsetDp)
             )
         } else {
-            // 左侧消息：右边距 dp(4)
             canvas.clipRect(
-                rect.left + dpF(4f), rect.top + dpF(4f),
-                rect.right - dpF(4f), rect.bottom - dpF(4f)
+                rect.left + dpF(clipLeftInsetDp), rect.top + dpF(clipTopInsetDp),
+                rect.right - dpF(clipRightInsetInDp), rect.bottom - dpF(clipBottomInsetDp)
             )
         }
         // 文本位置固定，不需要 translate
@@ -441,33 +482,52 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         bubbleDrawable.draw(canvas)
     }
 
+    /**
+     * 图片等媒体消息可在时间文字下绘制背景（渐变或气泡）。
+     * @param timeX 时间文字起始 X（基线坐标系）
+     * @param timeY 时间文字基线 Y
+     * @param timeWidth 时间文字宽度（px）
+     * @param timeRight 时间+状态区域最右侧 X（= bubbleRect.right - paddingEnd）
+     */
+    protected open fun drawTimeBackground(
+        canvas: Canvas, bubbleRect: RectF,
+        timeX: Float, timeY: Float,
+        timeWidth: Float, timeRight: Float
+    ) {}
+
+    protected open fun getTimePaintForMessage(): TextPaint = if (fromMe) timePaintOut else timePaintIn
+
+    protected open fun getStatusPaintForMessage(): TextPaint = statusPaint
+
     private fun drawTime(canvas: Canvas) {
-        val timePaint = if (fromMe) timePaintOut else timePaintIn
+        val timePaint = getTimePaintForMessage()
+        val statusPaintDraw = getStatusPaintForMessage()
         val timeWidthF = timePaint.measureText(timeText)
-        val statusWidthF = if (showStatus) statusPaint.measureText(statusText) else 0f
+        val statusWidthF = if (showStatus) statusPaintDraw.measureText(statusText) else 0f
         val rect = getDrawBubbleRect(drawBubbleRect)
-        val lastBaseline = contentAsTg.getLastLineBaseline()?.let { it + rect.top + paddingTop }
+        val lastBaseline = contentAsTg.getLastLineBaseline()?.let { it + rect.top + bubblePaddingTop }
         val contentWidth = rect.width() - getPaddingStartLocal() - getPaddingEndLocal()
         val lastLineWidth = contentAsTg.getLastLineWidth().toFloat()
         val inlineAllowed = inlineTimeWithText && timeInline &&
             lastLineWidth + timeExtraWidth + timeWidthF + (if (showStatus) statusWidthF + statusGap else 0f) <= contentWidth + 0.5f
         // 时间与消息状态均右下角对齐：最右为状态，左侧为时间
         val timeX = rect.right - getPaddingEndLocal().toFloat() - (if (showStatus) statusWidthF + statusGap else 0f) - timeWidthF
-        var timeY = if (inlineAllowed) {
+        val timeY = if (inlineAllowed) {
             // 行内时间：基线略低于末行
-            timeAnchor.getTimeY(rect, lastBaseline, timePaint, paddingBottom.toFloat())
+            timeAnchor.getTimeY(rect, lastBaseline, timePaint, bubblePaddingBottom.toFloat())
         } else {
             // 行内条件不满足时，按底部时间行绘制避免重叠
-            TgTimeAnchorBottomRight.getTimeY(rect, lastBaseline, timePaint, paddingBottom.toFloat())
+            TgTimeAnchorBottomRight.getTimeY(rect, lastBaseline, timePaint, bubblePaddingBottom.toFloat())
         }
-        // 时间和消息状态始终显示，没有渐变效果，只有位置会变化
+        val timeRight = rect.right - getPaddingEndLocal().toFloat()
+        drawTimeBackground(canvas, rect, timeX, timeY, timeWidthF, timeRight)
         // 位置基于动画插值后的 rect，会跟随气泡大小变化
         canvas.drawText(timeText, timeX, timeY, timePaint)
         // 绘制消息状态（紧随时间右侧）
         if (showStatus && statusWidthF > 0f) {
             val statusX = rect.right - getPaddingEndLocal().toFloat() - statusWidthF
             val statusY = timeY
-            canvas.drawText(statusText, statusX, statusY, statusPaint)
+            canvas.drawText(statusText, statusX, statusY, statusPaintDraw)
         }
     }
 
@@ -480,8 +540,8 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         return child.measuredHeight
     }
 
-    private fun getPaddingStartLocal(): Int = if (fromMe) paddingStartOut else paddingStartIn
-    private fun getPaddingEndLocal(): Int = if (fromMe) paddingEndOut else paddingEndIn
+    private fun getPaddingStartLocal(): Int = if (fromMe) bubblePaddingStartOut else bubblePaddingStartIn
+    private fun getPaddingEndLocal(): Int = if (fromMe) bubblePaddingEndOut else bubblePaddingEndIn
 
     protected fun dp(value: Float): Int = (value * resources.displayMetrics.density).toInt()
     protected fun dpF(value: Float): Float = TgAndroidUtilities.dpF(value, resources.displayMetrics.density)

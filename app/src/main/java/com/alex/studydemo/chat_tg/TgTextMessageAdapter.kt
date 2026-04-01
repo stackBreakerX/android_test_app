@@ -1,5 +1,6 @@
 package com.alex.studydemo.chat_tg
 
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
@@ -29,7 +30,13 @@ sealed class TgMessageItem(open val id: Long) {
     data class Image(
         override val id: Long,
         val fromMe: Boolean,
-        val time: String
+        val time: String,
+        /** 相册所选图片；为空时占位灰块（兼容旧数据） */
+        val imageUri: Uri? = null,
+        /** 右列图；与 [albumDual] 或本字段同时存在时双列展示 */
+        val secondImageUri: Uri? = null,
+        /** 为 true 时双列布局（右列可为空，用于演示并排相册） */
+        val albumDual: Boolean = false
     ) : TgMessageItem(id)
 
     data class Video(
@@ -176,9 +183,18 @@ class TgTextMessageAdapter(
     }
 
     class MediaVH(private val cell: BaseTgMessageCell) : RecyclerView.ViewHolder(cell) {
-        /** 绑定图片消息的基础信息（时间/方向） */
+        /** 绑定图片消息（时间、方向、相册 URI） */
         fun bindImage(item: TgMessageItem.Image) {
-            cell.bindBase(item.time, item.fromMe)
+            when (val c = cell) {
+                is TgImageMessageCell -> c.bindImage(
+                    item.time,
+                    item.fromMe,
+                    item.imageUri,
+                    item.secondImageUri,
+                    item.albumDual
+                )
+                else -> cell.bindBase(item.time, item.fromMe)
+            }
         }
         /** 绑定视频消息的基础信息（时间/方向） */
         fun bindVideo(item: TgMessageItem.Video) {

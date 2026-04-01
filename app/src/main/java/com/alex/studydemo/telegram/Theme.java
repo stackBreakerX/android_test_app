@@ -358,10 +358,16 @@ public final class Theme {
                     }
                 } else {
                     if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
-                        path.lineTo(bounds.right - dp(8f), bounds.bottom - padding - smallRad - dp(3f));
-                        rect.set(bounds.right - dp(8f), bounds.bottom - padding - smallRad * 2 - dp(9f),
-                                bounds.right - dp(7f) + smallRad * 2, bounds.bottom - padding - dp(1f));
-                        path.arcTo(rect, 180, -83, false);
+                        // Figma-style smooth bezier tail (outgoing, bottom-right)
+                        path.lineTo(bounds.right - dp(8f), bounds.bottom - padding - dp(14f));
+                        path.cubicTo(
+                                bounds.right - dp(8f), bounds.bottom - padding - dp(4f),
+                                bounds.right - dp(2f), bounds.bottom - padding + dp(3f),
+                                bounds.right, bounds.bottom - padding + dp(3f));
+                        path.cubicTo(
+                                bounds.right - dp(4f), bounds.bottom - padding + dp(2f),
+                                bounds.right - dp(8f), bounds.bottom - padding,
+                                bounds.right - dp(8f) - nearRad, bounds.bottom - padding);
                     } else {
                         path.lineTo(bounds.right - dp(8f), top - topY + currentBackgroundHeight);
                     }
@@ -415,10 +421,16 @@ public final class Theme {
                     }
                 } else {
                     if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
-                        path.lineTo(bounds.left + dp(8f), bounds.bottom - padding - smallRad - dp(3f));
-                        rect.set(bounds.left + dp(7f) - smallRad * 2, bounds.bottom - padding - smallRad * 2 - dp(9f),
-                                bounds.left + dp(8f), bounds.bottom - padding - dp(1f));
-                        path.arcTo(rect, 0, 83, false);
+                        // Figma-style smooth bezier tail (incoming, bottom-left)
+                        path.lineTo(bounds.left + dp(8f), bounds.bottom - padding - dp(14f));
+                        path.cubicTo(
+                                bounds.left + dp(8f), bounds.bottom - padding - dp(4f),
+                                bounds.left + dp(2f), bounds.bottom - padding + dp(3f),
+                                bounds.left, bounds.bottom - padding + dp(3f));
+                        path.cubicTo(
+                                bounds.left + dp(4f), bounds.bottom - padding + dp(2f),
+                                bounds.left + dp(8f), bounds.bottom - padding,
+                                bounds.left + dp(8f) + nearRad, bounds.bottom - padding);
                     } else {
                         path.lineTo(bounds.left + dp(8f), top - topY + currentBackgroundHeight);
                     }

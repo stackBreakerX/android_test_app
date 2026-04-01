@@ -18,52 +18,83 @@ import androidx.core.graphics.ColorUtils;
  * 自 Telegram {@code org.telegram.ui.ActionBar.Theme} 精简移植：仅保留气泡绘制相关的 dp/圆角与
  * {@link MessageDrawable}。不含颜色表、壁纸、主题包等其余上万行逻辑。
  *
+ * <p><b>职责划分：</b></p>
+ * <ul>
+ *   <li>{@link Theme} — 全局气泡圆角 dp（{@link #bubbleRadiusDp}）与 dp 换算、标量插值</li>
+ *   <li>{@link MessageDrawable} — 与 ChatMessageCell 对齐的气泡 Path（文本尾巴 / 媒体圆角）、选中遮罩、裁剪用 {@link #makePath()}</li>
+ * </ul>
+ *
  * <p>若需完整主题系统，请在 Telegram 工程内直接使用原版 Theme。</p>
  */
 public final class Theme {
 
-    /** 与 Telegram {@code SharedConfig.bubbleRadius} 默认相近，可按产品修改 */
+    /**
+     * 气泡主圆角半径（dp），与 Telegram {@code SharedConfig.bubbleRadius} 默认相近；演示页可通过
+     * {@code TgSharedConfig} 等与产品一致。
+     */
     public static int bubbleRadiusDp = 17;
 
     private Theme() {
     }
 
+    /**
+     * dp → 像素，向上取整，与列表测量里「至少 1px」策略一致。
+     */
     public static int dp(Context context, float value) {
         return (int) Math.ceil(value * context.getResources().getDisplayMetrics().density);
     }
 
-    /** 线性插值（不依赖 {@code androidx.core.math.MathUtils}，避免部分 core 版本无 {@code lerp} 或未进 classpath） */
+    /**
+     * 线性插值（不依赖 {@code androidx.core.math.MathUtils}，避免部分 core 版本无 {@code lerp} 或未进 classpath）。
+     *
+     * @param amount 0～1，0 返回 start，1 返回 end
+     */
     public static float lerp(float start, float end, float amount) {
         return start + (end - start) * amount;
     }
 
     /**
      * 消息气泡背景（自 Telegram {@code Theme.MessageDrawable} 剥离渐变/NinePatch/动效后的子集）。
+     *
+     * <p><b>类型：</b>{@link #TYPE_TEXT} 带尾巴（靠屏幕一侧底角）；{@link #TYPE_MEDIA} 四角圆角无尾巴；
+     * {@link #TYPE_PREVIEW} 小圆角用于主题预览。</p>
+     *
+     * <p><b>与列表配合：</b>全量 Telegram 里由 {@code setTop} 传入整条消息块高度与相邻关系，用于长消息分片裁剪；
+     * 本精简版在 {@link #draw(Canvas)} 开头同步 bounds，避免独立 Drawable 未调用 {@link #setTop} 时丢尾巴。</p>
      */
     public static class MessageDrawable extends Drawable {
 
+        /** 文本类气泡（含右下角/左下角尾巴） */
         public static final int TYPE_TEXT = 0;
+        /** 媒体类气泡：仅圆角，无尾巴 */
         public static final int TYPE_MEDIA = 1;
+        /** 主题预览用小圆角 */
         public static final int TYPE_PREVIEW = 2;
 
         private final Context appContext;
+        /** 主填充：纯色或外部传入的替代 Paint */
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        /** 选中时叠加在路径上的半透明层 */
         private final Paint selectedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF rect = new RectF();
         private final Path path = new Path();
 
         private int currentType;
+        /** true = 发出（右侧），false = 收到（左侧）；决定尾巴在右下还是左下 */
         private boolean isOut;
         public boolean isSelected;
         public boolean themePreview;
 
+        /** 当前片段在「整段消息背景」里的纵向偏移（全量客户端分片绘制用） */
         private int topY;
         private boolean isTopNear;
         private boolean isBottomNear;
         private boolean botButtonsBottom;
+        /** 整段消息背景高度；与 bounds 高度比较用于判断是否画全角/全尾巴 */
         private int currentBackgroundHeight;
         private boolean drawFullBubble;
         private int overrideRoundRadius;
+        /** 0～1，与最小边一半之间插值圆角 */
         private float overrideRounding;
         private int alpha = 255;
 
@@ -88,6 +119,7 @@ public final class Theme {
             applyMainColor();
         }
 
+        /** 切换发出/收到，刷新填充色 */
         public void setOutgoing(boolean out) {
             if (this.isOut == out) {
                 return;
@@ -114,6 +146,7 @@ public final class Theme {
             invalidateSelf();
         }
 
+        /** 根据 {@link #isOut}、{@link #isSelected} 写入 {@link #paint} */
         private void applyMainColor() {
             int c;
             if (isOut) {
@@ -173,6 +206,9 @@ public final class Theme {
             invalidateSelf();
         }
 
+        /**
+         * 使用外部传入的 {@link PathDrawParams} 绘制，避免与实例内 {@link #path} 冲突（缓存路径场景）。
+         */
         public void drawCached(@NonNull Canvas canvas, PathDrawParams params, Paint paintToUse) {
             pathDrawCacheParams = params;
             draw(canvas, paintToUse);
@@ -188,6 +224,9 @@ public final class Theme {
             draw(canvas, null);
         }
 
+        /**
+         * @param paintToUse 非 null 时用其替代内部 {@link #paint}（例如预览或着色）
+         */
         public void draw(@NonNull Canvas canvas, Paint paintToUse) {
             Rect bounds = getBounds();
             if (bounds.isEmpty()) {
@@ -251,6 +290,9 @@ public final class Theme {
             return makePath(pathDrawCacheParams);
         }
 
+        /**
+         * 生成与当前绘制一致的闭合路径，供 {@code Canvas.clipPath} 裁剪子 View（与气泡轮廓一致）。
+         */
         @NonNull
         public Path makePath(PathDrawParams cacheParams) {
             Rect bounds = getBounds();
@@ -302,6 +344,11 @@ public final class Theme {
             return outPath;
         }
 
+        /**
+         * 按 Telegram 几何规则拼接 Path：先底边再侧边再顶边，最后闭合；{@code isOut} 分支决定尾巴在左还是右。
+         *
+         * @param customPaint true 表示 makePath/裁剪用途，部分 MEDIA 分支与 draw 一致
+         */
         private void generatePath(Path path, Rect bounds, int padding, int rad, int smallRad, int nearRad, int top,
                 boolean drawFullBottom, boolean drawFullTop, boolean customPaint) {
             path.rewind();
@@ -310,6 +357,7 @@ public final class Theme {
                 rad = heightHalf;
             }
             if (isOut) {
+                // ——— 发出消息：尾巴在右下角 ———
                 if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
                     int radToUse = botButtonsBottom ? nearRad : rad;
                     if (currentType == TYPE_MEDIA) {
@@ -358,21 +406,16 @@ public final class Theme {
                     }
                 } else {
                     if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
-                        // Figma-style smooth bezier tail (outgoing, bottom-right)
-                        path.lineTo(bounds.right - dp(8f), bounds.bottom - padding - dp(14f));
-                        path.cubicTo(
-                                bounds.right - dp(8f), bounds.bottom - padding - dp(4f),
-                                bounds.right - dp(2f), bounds.bottom - padding + dp(3f),
-                                bounds.right, bounds.bottom - padding + dp(3f));
-                        path.cubicTo(
-                                bounds.right - dp(4f), bounds.bottom - padding + dp(2f),
-                                bounds.right - dp(8f), bounds.bottom - padding,
-                                bounds.right - dp(8f) - nearRad, bounds.bottom - padding);
+                        path.lineTo(bounds.right - dp(8f), bounds.bottom - padding - smallRad - dp(3f));
+                        rect.set(bounds.right - dp(8f), bounds.bottom - padding - smallRad * 2 - dp(9f),
+                                bounds.right - dp(7f) + smallRad * 2, bounds.bottom - padding - dp(1f));
+                        path.arcTo(rect, 180, -83, false);
                     } else {
                         path.lineTo(bounds.right - dp(8f), top - topY + currentBackgroundHeight);
                     }
                 }
             } else {
+                // ——— 收到消息：尾巴在左下角（与上面对称） ———
                 if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
                     int radToUse = botButtonsBottom ? nearRad : rad;
                     if (currentType == TYPE_MEDIA) {
@@ -421,16 +464,10 @@ public final class Theme {
                     }
                 } else {
                     if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
-                        // Figma-style smooth bezier tail (incoming, bottom-left)
-                        path.lineTo(bounds.left + dp(8f), bounds.bottom - padding - dp(14f));
-                        path.cubicTo(
-                                bounds.left + dp(8f), bounds.bottom - padding - dp(4f),
-                                bounds.left + dp(2f), bounds.bottom - padding + dp(3f),
-                                bounds.left, bounds.bottom - padding + dp(3f));
-                        path.cubicTo(
-                                bounds.left + dp(4f), bounds.bottom - padding + dp(2f),
-                                bounds.left + dp(8f), bounds.bottom - padding,
-                                bounds.left + dp(8f) + nearRad, bounds.bottom - padding);
+                        path.lineTo(bounds.left + dp(8f), bounds.bottom - padding - smallRad - dp(3f));
+                        rect.set(bounds.left + dp(7f) - smallRad * 2, bounds.bottom - padding - smallRad * 2 - dp(9f),
+                                bounds.left + dp(8f), bounds.bottom - padding - dp(1f));
+                        path.arcTo(rect, 0, 83, false);
                     } else {
                         path.lineTo(bounds.left + dp(8f), top - topY + currentBackgroundHeight);
                     }
@@ -470,7 +507,7 @@ public final class Theme {
         }
 
         /**
-         * 与 Telegram 一致：缓存 Path，减少列表滑动时重复构建。
+         * 与 Telegram 一致：缓存 Path，减少列表滑动时重复 {@link MessageDrawable#generatePath}。
          */
         public static class PathDrawParams {
             public final Path path = new Path();
@@ -478,6 +515,9 @@ public final class Theme {
             private boolean lastDrawFullTop;
             private boolean lastDrawFullBottom;
 
+            /**
+             * bounds 或顶/底是否「整段绘制」变化时返回 true，应重新生成路径。
+             */
             public boolean invalidatePath(Rect bounds, boolean drawFullBottom, boolean drawFullTop) {
                 boolean invalidate = lastRect.isEmpty()
                         || lastRect.top != bounds.top

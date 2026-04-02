@@ -13,14 +13,14 @@ import com.alex.studydemo.telegram.Theme
  * - 时间药丸：由 [TgTimeStatusView.Style.BUBBLE] 统一实现
  *   （半透明圆角矩形 rgba(0,0,0,0.3)，radius=16dp，H pad=8dp，V pad=3dp）
  * - 状态图标：[TgTimeStatusView] 内部 Canvas Path 双勾，白色
- * - 气泡使用 [Theme.MessageDrawable.TYPE_TEXT] 绘制带尾巴的气泡形状
+ * - 气泡使用 [Theme.MessageDrawable.STYLE_TAIL] 绘制带尾巴的气泡形状
  */
 class TgImageMessageCell @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : BaseTgMessageCell(context, attrs) {
 
-    override val bubbleDrawableType: Int = Theme.MessageDrawable.TYPE_TEXT
+    override val bubbleDrawableType: Int = Theme.MessageDrawable.STYLE_TAIL
 
     /** 时间+状态 View 叠加在图片上方，使用 BUBBLE 药丸样式 */
     override val timeOverlay: Boolean = true

@@ -60,20 +60,20 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
     /**
      * 消息气泡背景（自 Telegram {@code Theme.MessageDrawable} 剥离渐变/NinePatch/动效后的子集）。
      *
-     * <p><b>类型：</b>{@link #TYPE_TEXT} 带尾巴（靠屏幕一侧底角）；{@link #TYPE_MEDIA} 四角圆角无尾巴；
-     * {@link #TYPE_PREVIEW} 小圆角用于主题预览。</p>
+     * <p><b>渲染样式：</b>{@link #STYLE_TAIL} 带尾巴（靠屏幕一侧底角）；{@link #STYLE_ROUNDED} 四角圆角无尾巴；
+     * {@link #STYLE_COMPACT} 小圆角(6dp)适用紧凑场景。样式与消息类型无关，调用者自行选择。</p>
      *
      * <p><b>与列表配合：</b>全量 Telegram 里由 {@code setTop} 传入整条消息块高度与相邻关系，用于长消息分片裁剪；
      * 本精简版在 {@link #draw(Canvas)} 开头同步 bounds，避免独立 Drawable 未调用 {@link #setTop} 时丢尾巴。</p>
      */
     public static class MessageDrawable extends Drawable { // 自 Drawable，可设 bounds 并 draw 到 Canvas
 
-        /** 文本类气泡（含右下角/左下角尾巴） */
-        public static final int TYPE_TEXT = 0; // 与 TG 常量值一致
-        /** 媒体类气泡：仅圆角，无尾巴 */
-        public static final int TYPE_MEDIA = 1;
-        /** 主题预览用小圆角 */
-        public static final int TYPE_PREVIEW = 2;
+        /** 渲染样式一：带尾巴的圆角气泡（左下或右下角伸出贝塞尔尾巴） */
+        public static final int STYLE_TAIL = 0;
+        /** 渲染样式二：纯圆角矩形气泡，无尾巴（适用于任何不需要方向感的消息） */
+        public static final int STYLE_ROUNDED = 1;
+        /** 渲染样式三：小圆角（radius=6dp）紧凑气泡，适合主题预览或小卡片场景 */
+        public static final int STYLE_COMPACT = 2;
 
         private final Context appContext; // ApplicationContext，避免持有 Activity
         /** 主填充：纯色或外部传入的替代 Paint */
@@ -83,7 +83,7 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
         private final RectF rect = new RectF(); // 复用，减少 arcTo 时分配
         private final Path path = new Path(); // 主缓存路径（非 drawCached 时用）
 
-        private int currentType; // TYPE_TEXT / TYPE_MEDIA / TYPE_PREVIEW
+        private int currentType; // STYLE_TAIL / STYLE_ROUNDED / STYLE_COMPACT
         /** true = 发出（右侧），false = 收到（左侧）；决定尾巴在右下还是左下 */
         private boolean isOut;
         public boolean isSelected; // 是否显示选中加深/遮罩
@@ -247,7 +247,7 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
             } else if (overrideRounding > 0) { // 按比例插值到pill形
                 rad = (int) lerp(dp(Theme.bubbleRadiusDp), Math.min(bounds.width(), bounds.height()) / 2f, overrideRounding); // 大圆角
                 nearRad = (int) lerp(dp(Math.min(6, Theme.bubbleRadiusDp)), Math.min(bounds.width(), bounds.height()) / 2f, overrideRounding); // 小圆角上限 6dp
-            } else if (currentType == TYPE_PREVIEW) { // 预览用小圆角
+            } else if (currentType == STYLE_COMPACT) { // 预览用小圆角
                 rad = dp(6f); // 6dp
                 nearRad = dp(6f);
             } else { // 默认
@@ -309,7 +309,7 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
             } else if (overrideRounding > 0) {
                 rad = (int) lerp(dp(Theme.bubbleRadiusDp), Math.min(bounds.width(), bounds.height()) / 2f, overrideRounding);
                 nearRad = (int) lerp(dp(Math.min(6, Theme.bubbleRadiusDp)), Math.min(bounds.width(), bounds.height()) / 2f, overrideRounding);
-            } else if (currentType == TYPE_PREVIEW) {
+            } else if (currentType == STYLE_COMPACT) {
                 rad = dp(6f);
                 nearRad = dp(6f);
             } else {
@@ -328,7 +328,7 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                 drawFullBottom = true; // 画全底（含尾巴）
                 drawFullTop = true; // 画全顶
             } else { // 列表分片真实裁剪
-                drawFullBottom = currentType == TYPE_MEDIA // 媒体判断式不同
+                drawFullBottom = currentType == STYLE_ROUNDED // 媒体判断式不同
                         ? topY + bounds.bottom - smallRad * 2 < currentBackgroundHeight // 媒体用 smallRad
                         : topY + bounds.bottom - rad < currentBackgroundHeight; // 文本用 rad
                 drawFullTop = topY + rad * 2 >= 0; // 顶是否在可视上方
@@ -362,9 +362,9 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
             }
             if (isOut) { // 发出：尾巴在屏幕右侧底部
                 // ——— 发出消息：尾巴在右下角 ———
-                if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) { // 画完整底边或等价条件
+                if (drawFullBubble || currentType == STYLE_COMPACT || customPaint || drawFullBottom) { // 画完整底边或等价条件
                     int radToUse = botButtonsBottom ? nearRad : rad; // 机器人底边用 near 半径
-                    if (currentType == TYPE_MEDIA) { // 媒体从内侧开始
+                    if (currentType == STYLE_ROUNDED) { // 媒体从内侧开始
                         path.moveTo(bounds.right - dp(8f) - radToUse, bounds.bottom - padding); // 左移 8dp+圆角
                     } else { // 文本：贴近右缘起笔
                         path.moveTo(bounds.right - dp(20f), bounds.bottom - padding); // 平底边从20dp处开始（对应union.xml x=258-20.5≈right-20dp）
@@ -377,12 +377,12 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                     path.moveTo(bounds.right - dp(4f), top - topY + currentBackgroundHeight); // 移到截断高度
                     path.lineTo(bounds.left + padding, top - topY + currentBackgroundHeight); // 水平线
                 }
-                if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullTop) { // 完整顶边区域
+                if (drawFullBubble || currentType == STYLE_COMPACT || customPaint || drawFullTop) { // 完整顶边区域
                     path.lineTo(bounds.left + padding, bounds.top + padding + rad); // 左边向上
                     rect.set(bounds.left + padding, bounds.top + padding, bounds.left + padding + rad * 2, bounds.top + padding + rad * 2); // 左上圆角
                     path.arcTo(rect, 180, 90, false); // 左上弧
                     int radToUse = isTopNear ? nearRad : rad; // 顶相邻用小圆角
-                    if (currentType == TYPE_MEDIA) { // 媒体顶边靠右
+                    if (currentType == STYLE_ROUNDED) { // 媒体顶边靠右
                         path.lineTo(bounds.right - padding - radToUse, bounds.top + padding); // 顶边向右
                         rect.set(bounds.right - padding - radToUse * 2, bounds.top + padding, bounds.right - padding, bounds.top + padding + radToUse * 2); // 右上
                     } else { // 文本：右上有 4dp 偏移（对齐 union.xml）
@@ -392,13 +392,13 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                     path.arcTo(rect, 270, 90, false); // 右上弧
                 } else { // 顶部分片
                     path.lineTo(bounds.left + padding, top - topY - dp(2f)); // 左竖
-                    if (currentType == TYPE_MEDIA) {
+                    if (currentType == STYLE_ROUNDED) {
                         path.lineTo(bounds.right - padding, top - topY - dp(2f)); // 媒体顶截断
                     } else {
                         path.lineTo(bounds.right - dp(4f), top - topY - dp(2f)); // 文本顶截断
                     }
                 }
-                if (currentType == TYPE_MEDIA) { // 媒体右侧竖边与右下圆角
+                if (currentType == STYLE_ROUNDED) { // 媒体右侧竖边与右下圆角
                     if (customPaint || drawFullBottom) { // 需要完整右下
                         int radToUse = isBottomNear ? nearRad : rad; // 底相邻
                         path.lineTo(bounds.right - padding, bounds.bottom - padding - radToUse); // 向下
@@ -409,7 +409,7 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                         path.lineTo(bounds.right - padding, top - topY + currentBackgroundHeight); // 分片竖边
                     }
                 } else { // 文本：画尾巴弧
-                    if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) { // 完整尾巴
+                    if (drawFullBubble || currentType == STYLE_COMPACT || customPaint || drawFullBottom) { // 完整尾巴
                         // Figma union.xml 贝塞尔尾巴（发出，右下角）
                         // 内侧曲线：体部底角 → 尖端
                         path.lineTo(bounds.right - dp(4f), bounds.bottom - padding - dp(8f));
@@ -436,9 +436,9 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                 }
             } else { // 收到：镜像，尾巴在左下
                 // ——— 收到消息：尾巴在左下角（与上面对称） ———
-                if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
+                if (drawFullBubble || currentType == STYLE_COMPACT || customPaint || drawFullBottom) {
                     int radToUse = botButtonsBottom ? nearRad : rad;
-                    if (currentType == TYPE_MEDIA) {
+                    if (currentType == STYLE_ROUNDED) {
                         path.moveTo(bounds.left + dp(8f) + radToUse, bounds.bottom - padding); // 从左下圆角内侧起
                     } else {
                         path.moveTo(bounds.left + dp(20f), bounds.bottom - padding); // 平底边从20dp处开始（对应union.xml x=20.5dp）
@@ -451,12 +451,12 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                     path.moveTo(bounds.left + dp(4f), top - topY + currentBackgroundHeight);
                     path.lineTo(bounds.right - padding, top - topY + currentBackgroundHeight);
                 }
-                if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullTop) {
+                if (drawFullBubble || currentType == STYLE_COMPACT || customPaint || drawFullTop) {
                     path.lineTo(bounds.right - padding, bounds.top + padding + rad); // 右侧向上
                     rect.set(bounds.right - padding - rad * 2, bounds.top + padding, bounds.right - padding, bounds.top + padding + rad * 2); // 右上
                     path.arcTo(rect, 0, -90, false); // 右上
                     int radToUse = isTopNear ? nearRad : rad;
-                    if (currentType == TYPE_MEDIA) {
+                    if (currentType == STYLE_ROUNDED) {
                         path.lineTo(bounds.left + padding + radToUse, bounds.top + padding); // 顶边向左
                         rect.set(bounds.left + padding, bounds.top + padding, bounds.left + padding + radToUse * 2, bounds.top + padding + radToUse * 2); // 左上
                     } else {
@@ -466,13 +466,13 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                     path.arcTo(rect, 270, -90, false); // 左上
                 } else {
                     path.lineTo(bounds.right - padding, top - topY - dp(2f));
-                    if (currentType == TYPE_MEDIA) {
+                    if (currentType == STYLE_ROUNDED) {
                         path.lineTo(bounds.left + padding, top - topY - dp(2f));
                     } else {
                         path.lineTo(bounds.left + dp(4f), top - topY - dp(2f));
                     }
                 }
-                if (currentType == TYPE_MEDIA) {
+                if (currentType == STYLE_ROUNDED) {
                     if (customPaint || drawFullBottom) {
                         int radToUse = isBottomNear || botButtonsBottom ? nearRad : rad;
                         path.lineTo(bounds.left + padding, bounds.bottom - padding - radToUse); // 左侧向下
@@ -483,7 +483,7 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                         path.lineTo(bounds.left + padding, top - topY + currentBackgroundHeight);
                     }
                 } else {
-                    if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
+                    if (drawFullBubble || currentType == STYLE_COMPACT || customPaint || drawFullBottom) {
                         // Figma union.xml 贝塞尔尾巴（收到，左下角）
                         // 内侧曲线：体部底角 → 尖端
                         path.lineTo(bounds.left + dp(4f), bounds.bottom - padding - dp(8f));

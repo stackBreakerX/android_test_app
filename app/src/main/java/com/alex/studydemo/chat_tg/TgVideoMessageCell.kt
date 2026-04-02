@@ -14,7 +14,7 @@ class TgVideoMessageCell @JvmOverloads constructor(
     attrs: AttributeSet? = null
 ) : BaseTgMessageCell(context, attrs) {
 
-    override val bubbleDrawableType: Int = Theme.MessageDrawable.TYPE_MEDIA
+    override val bubbleDrawableType: Int = Theme.MessageDrawable.STYLE_ROUNDED
 
     /** 视频内容视图 */
     private val videoContentView = VideoContentView(context)

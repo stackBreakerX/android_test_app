@@ -69,8 +69,8 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     private val extraSpacing = dp(4f)
     private val maxBubbleWidthRatio = 0.72f
 
-    /** 气泡形状：文本为带尾巴的 [Theme.MessageDrawable.TYPE_TEXT]，子类可改为 [Theme.MessageDrawable.TYPE_MEDIA] */
-    protected open val bubbleDrawableType: Int = Theme.MessageDrawable.TYPE_TEXT
+    /** 气泡渲染样式：默认 [Theme.MessageDrawable.STYLE_TAIL]（带尾巴），子类可改为 [Theme.MessageDrawable.STYLE_ROUNDED]（无尾巴）或 [Theme.MessageDrawable.STYLE_COMPACT]（小圆角） */
+    protected open val bubbleDrawableType: Int = Theme.MessageDrawable.STYLE_TAIL
 
     // 时间定位策略（文本内联 / 右下角）
     protected abstract val timeAnchor: TgTimeAnchor

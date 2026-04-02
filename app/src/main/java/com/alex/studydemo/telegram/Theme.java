@@ -367,7 +367,7 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                     if (currentType == TYPE_MEDIA) { // 媒体从内侧开始
                         path.moveTo(bounds.right - dp(8f) - radToUse, bounds.bottom - padding); // 左移 8dp+圆角
                     } else { // 文本：贴近右缘起笔
-                        path.moveTo(bounds.right - dp(2.6f), bounds.bottom - padding); // 2.6dp 微调对齐尾巴
+                        path.moveTo(bounds.right - dp(20f), bounds.bottom - padding); // 平底边从20dp处开始（对应union.xml x=258-20.5≈right-20dp）
                     }
                     path.lineTo(bounds.left + padding + radToUse, bounds.bottom - padding); // 底边向左
                     rect.set(bounds.left + padding, bounds.bottom - padding - radToUse * 2,
@@ -411,7 +411,8 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                 } else { // 文本：画尾巴弧
                     if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) { // 完整尾巴
                         // Figma union.xml 贝塞尔尾巴（发出，右下角）
-                        path.lineTo(bounds.right - dp(4f), bounds.bottom - padding - dp(8f)); // 右侧向下到气泡底右角
+                        // 内侧曲线：体部底角 → 尖端
+                        path.lineTo(bounds.right - dp(4f), bounds.bottom - padding - dp(8f));
                         path.cubicTo(
                                 bounds.right - dp(4f), bounds.bottom - padding - dp(8f),
                                 bounds.right - dp(4f), bounds.bottom - padding - dp(6f),
@@ -419,7 +420,16 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                         path.cubicTo(
                                 bounds.right - dp(2f), bounds.bottom - padding - dp(2f),
                                 bounds.right,          bounds.bottom - padding,
-                                bounds.right,          bounds.bottom - padding);
+                                bounds.right,          bounds.bottom - padding); // 到达尖端
+                        // 外侧 S 曲线：从尖端回到 moveTo 起点（对应 union.xml outer 段，逆序）
+                        path.cubicTo(
+                                bounds.right,            bounds.bottom - padding,
+                                bounds.right - dp(8f),   bounds.bottom - padding,
+                                bounds.right - dp(11f),  bounds.bottom - padding - dp(3f));
+                        path.cubicTo(
+                                bounds.right - dp(14f),  bounds.bottom - padding - dp(1f),
+                                bounds.right - dp(17f),  bounds.bottom - padding,
+                                bounds.right - dp(20f),  bounds.bottom - padding); // 回到 moveTo 起点
                     } else {
                         path.lineTo(bounds.right - dp(4f), top - topY + currentBackgroundHeight); // 分片
                     }
@@ -431,7 +441,7 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                     if (currentType == TYPE_MEDIA) {
                         path.moveTo(bounds.left + dp(8f) + radToUse, bounds.bottom - padding); // 从左下圆角内侧起
                     } else {
-                        path.moveTo(bounds.left + dp(2.6f), bounds.bottom - padding); // 文本尾巴侧
+                        path.moveTo(bounds.left + dp(20f), bounds.bottom - padding); // 平底边从20dp处开始（对应union.xml x=20.5dp）
                     }
                     path.lineTo(bounds.right - padding - radToUse, bounds.bottom - padding); // 底边向右
                     rect.set(bounds.right - padding - radToUse * 2, bounds.bottom - padding - radToUse * 2,
@@ -475,7 +485,8 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                 } else {
                     if (drawFullBubble || currentType == TYPE_PREVIEW || customPaint || drawFullBottom) {
                         // Figma union.xml 贝塞尔尾巴（收到，左下角）
-                        path.lineTo(bounds.left + dp(4f), bounds.bottom - padding - dp(8f)); // 左侧向下到气泡底左角
+                        // 内侧曲线：体部底角 → 尖端
+                        path.lineTo(bounds.left + dp(4f), bounds.bottom - padding - dp(8f));
                         path.cubicTo(
                                 bounds.left + dp(4f), bounds.bottom - padding - dp(8f),
                                 bounds.left + dp(4f), bounds.bottom - padding - dp(6f),
@@ -483,7 +494,16 @@ public final class Theme { // final：无子类，仅作命名空间与静态工
                         path.cubicTo(
                                 bounds.left + dp(2f), bounds.bottom - padding - dp(2f),
                                 bounds.left,          bounds.bottom - padding,
-                                bounds.left,          bounds.bottom - padding);
+                                bounds.left,          bounds.bottom - padding); // 到达尖端
+                        // 外侧 S 曲线：从尖端回到 moveTo 起点（对应 union.xml outer 段，逆序）
+                        path.cubicTo(
+                                bounds.left,           bounds.bottom - padding,
+                                bounds.left + dp(8f),  bounds.bottom - padding,
+                                bounds.left + dp(11f), bounds.bottom - padding - dp(3f));
+                        path.cubicTo(
+                                bounds.left + dp(14f), bounds.bottom - padding - dp(1f),
+                                bounds.left + dp(17f), bounds.bottom - padding,
+                                bounds.left + dp(20f), bounds.bottom - padding); // 回到 moveTo 起点
                     } else {
                         path.lineTo(bounds.left + dp(4f), top - topY + currentBackgroundHeight);
                     }

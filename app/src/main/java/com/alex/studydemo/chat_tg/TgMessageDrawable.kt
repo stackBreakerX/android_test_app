@@ -9,13 +9,21 @@ import android.graphics.drawable.Drawable
 import com.alex.studydemo.telegram.Theme
 
 /**
- * TG 风格消息气泡绘制器：路径与填充由移植的 [Theme.MessageDrawable] 实现，本类保留描边与颜色常量，
- * 并将 [TgSharedConfig.bubbleRadius] 同步到 [Theme.bubbleRadiusDp]。
+ * TG 风格消息气泡绘制器：
+ * - **文本**（[Theme.MessageDrawable.TYPE_TEXT]）使用 [BubbleUnionShape]，与 `res/drawable/union.xml` 矢量一致；
+ * - **媒体**等仍用 [Theme.MessageDrawable] 程序化圆角。
+ * 描边与颜色常量在本类维护；[TgSharedConfig.bubbleRadius] 仅影响媒体/程序化分支。
  */
 class TgMessageDrawable(context: Context, private var out: Boolean) : Drawable() {
 
     private val impl = Theme.MessageDrawable(context, Theme.MessageDrawable.TYPE_TEXT, out, false).apply {
         setBubbleColors(COLOR_IN, COLOR_OUT)
+    }
+
+    private var bubbleType: Int = Theme.MessageDrawable.TYPE_TEXT
+
+    private val unionFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
     }
 
     private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -33,17 +41,25 @@ class TgMessageDrawable(context: Context, private var out: Boolean) : Drawable()
     }
 
     /**
-     * 文本消息用 [Theme.MessageDrawable.TYPE_TEXT]（带尾巴），图片/视频/文件等媒体样式用 [Theme.MessageDrawable.TYPE_MEDIA]（圆角无尾巴）。
+     * 文本消息用 [Theme.MessageDrawable.TYPE_TEXT]（union 矢量尾巴），媒体用 [Theme.MessageDrawable.TYPE_MEDIA]（程序化圆角无尾巴）。
      */
     fun setBubbleType(type: Int) {
+        bubbleType = type
         impl.setType(type)
         invalidateSelf()
     }
 
     override fun draw(canvas: Canvas) {
         syncImplGeometry()
-        impl.draw(canvas)
-        canvas.drawPath(impl.makePath(), strokePaint)
+        if (bubbleType == Theme.MessageDrawable.TYPE_TEXT) {
+            val p = BubbleUnionShape.pathForBounds(bounds, out)
+            unionFillPaint.color = if (out) COLOR_OUT else COLOR_IN
+            canvas.drawPath(p, unionFillPaint)
+            canvas.drawPath(p, strokePaint)
+        } else {
+            impl.draw(canvas)
+            canvas.drawPath(impl.makePath(), strokePaint)
+        }
     }
 
     /** 与 Telegram 一致：同步列表语义高度后路径才包含尾巴；否则 makePath 会裁掉底边 */
@@ -57,11 +73,16 @@ class TgMessageDrawable(context: Context, private var out: Boolean) : Drawable()
     /** 返回当前 bounds 对应的气泡路径，用于按气泡形状（圆角+尾巴）裁剪子 View */
     fun buildClipPath(): Path {
         syncImplGeometry()
-        return Path(impl.makePath())
+        return if (bubbleType == Theme.MessageDrawable.TYPE_TEXT) {
+            BubbleUnionShape.pathForBounds(bounds, out)
+        } else {
+            Path(impl.makePath())
+        }
     }
 
     override fun setAlpha(alpha: Int) {
         impl.setAlpha(alpha)
+        unionFillPaint.alpha = alpha
         strokePaint.alpha = alpha
     }
 

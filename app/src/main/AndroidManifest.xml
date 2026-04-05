@@ -120,9 +120,6 @@
             android:name=".network.request.NetworkRequestActivity"
             android:exported="false" />
         <activity
-            android:name=".module_thread.ThreadEntryActivity"
-            android:exported="false" />
-        <activity
             android:name=".module_performance.PerformanceEntryActivity"
             android:exported="false" />
         <activity

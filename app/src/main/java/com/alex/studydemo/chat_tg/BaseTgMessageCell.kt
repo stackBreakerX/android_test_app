@@ -639,6 +639,8 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
         return out
     }
 
+    fun getBubbleRect(): RectF = RectF(getDrawBubbleRect(RectF()))
+
     private fun lerp(start: Float, end: Float, progress: Float): Float = start + (end - start) * progress
 }
 

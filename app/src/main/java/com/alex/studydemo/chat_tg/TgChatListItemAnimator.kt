@@ -20,6 +20,12 @@ class TgChatListItemAnimator : RecyclerView.ItemAnimator() {
     ): Boolean {
         val v = holder.itemView
         v.animate().cancel()
+        if (v.alpha == 0f) {
+            v.translationY = 0f
+            v.scaleX = 1f
+            v.scaleY = 1f
+            return false
+        }
         v.alpha = 0f
         v.translationY = v.height * 0.12f
         v.scaleX = 0.98f

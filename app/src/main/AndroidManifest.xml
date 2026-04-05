@@ -49,6 +49,9 @@
             android:name=".module_coroutine.FlowActivity"
             android:exported="false" />
         <activity
+            android:name=".module_flow.FlowCompareActivity"
+            android:exported="false" />
+        <activity
             android:name=".module_room.RoomActivity"
             android:exported="false" />
         <activity android:name=".module_recyclerview.RecyclerViewActivity" />

@@ -5,27 +5,34 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- 添加读取图片权限以支持扫描图库 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" /> <!-- 添加读取图片权限以支持扫描图库 -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <!-- 相机权限 -->
-    <uses-permission android:name="android.permission.CAMERA" />
-    <!-- 写入外部存储权限 -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" /> <!-- 相机权限 -->
+    <uses-permission android:name="android.permission.CAMERA" /> <!-- 写入外部存储权限 -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <application
         android:name=".app.MyApplication"
         android:allowBackup="false"
         android:icon="@mipmap/icon_app"
         android:label="@string/app_name"
+        android:persistent="true"
         android:roundIcon="@mipmap/icon_app"
         android:supportsRtl="true"
-        android:persistent="true"
         android:theme="@style/Theme.StudyDemo">
         <activity
+            android:name=".compose.MuteStateOfActivity"
+            android:exported="false" />
+        <activity
             android:name=".module_coroutine.ChannelActivity"
-            android:launchMode="singleTask"
+            android:exported="false"
+            android:launchMode="singleTask" />
+        <activity
+            android:name=".module_compose.ComposeDemoActivity"
             android:exported="false" />
         <activity
             android:name=".module_recyclerview.RecyclerViewAnimationActivity"
@@ -78,32 +85,25 @@
             android:exported="false" />
         <activity
             android:name=".module_media.WebpLibwebpActivity"
-            android:exported="false" />
-        <!-- 注册多媒体合并入口二级页面 -->
+            android:exported="false" /> <!-- 注册多媒体合并入口二级页面 -->
         <activity
             android:name=".module_media.MediaEntryActivity"
-            android:exported="false" />
-        <!-- 注册 PNG 转换页面 -->
+            android:exported="false" /> <!-- 注册 PNG 转换页面 -->
         <activity
             android:name=".module_media.PngConvertActivity"
-            android:exported="false" />
-        <!-- 注册 JPG 转换页面 -->
+            android:exported="false" /> <!-- 注册 JPG 转换页面 -->
         <activity
             android:name=".module_media.JpgConvertActivity"
-            android:exported="false" />
-        <!-- 注册 PNG 透明检测页面 -->
+            android:exported="false" /> <!-- 注册 PNG 透明检测页面 -->
         <activity
             android:name=".module_media.PngAlphaCheckActivity"
-            android:exported="false" />
-        <!-- 注册图片选择页面 -->
+            android:exported="false" /> <!-- 注册图片选择页面 -->
         <activity
             android:name=".module_image.ImagePickerActivity"
-            android:exported="false" />
-        <!-- 注册快速缩略图页面 -->
+            android:exported="false" /> <!-- 注册快速缩略图页面 -->
         <activity
             android:name=".module_image.FastThumbnailActivity"
-            android:exported="false" />
-        <!-- 注册DNG处理页面 -->
+            android:exported="false" /> <!-- 注册DNG处理页面 -->
         <activity
             android:name=".module_image.DngProcessActivity"
             android:exported="false" />
@@ -124,24 +124,19 @@
             android:exported="false" />
         <activity
             android:name=".module_performance.JankStatsActivity"
-            android:exported="false" />
-        <!-- 新增 ItemAnimation 列表演示页 -->
+            android:exported="false" /> <!-- 新增 ItemAnimation 列表演示页 -->
         <activity
             android:name=".listdemo.AnimListActivity"
-            android:exported="false" />
-        <!-- 新增动画模块入口页 -->
+            android:exported="false" /> <!-- 新增动画模块入口页 -->
         <activity
             android:name=".module_animation.AnimationsEntryActivity"
             android:exported="false" />
         <activity
             android:name=".module_animation.ChatInputAnimActivity"
             android:exported="false" />
-
         <activity
             android:name=".chat_tg.TgTextChatActivity"
-            android:exported="false" />
-
-        <!-- FileProvider 配置 -->
+            android:exported="false" /> <!-- FileProvider 配置 -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -152,6 +147,5 @@
                 android:resource="@xml/file_paths" />
         </provider>
     </application>
-
 
 </manifest>

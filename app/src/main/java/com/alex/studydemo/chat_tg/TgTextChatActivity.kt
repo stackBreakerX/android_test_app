@@ -2,8 +2,11 @@ package com.alex.studydemo.chat_tg
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.RectF
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
+import android.view.ViewTreeObserver
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -11,14 +14,30 @@ import androidx.recyclerview.widget.RecyclerView
 import com.alex.studydemo.base.BaseActivity
 import com.alex.studydemo.databinding.ActivityTgTextChatBinding
 import com.alex.studydemo.telegram.Theme
+import java.util.ArrayDeque
+import java.util.LinkedHashSet
 import java.util.concurrent.Executors
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * TG 文本聊天示例页面
  * - 仅演示文本消息的渲染、输入与发送流程
- * - 气泡背景由移植的 [Theme.MessageDrawable]（经 [TgMessageDrawable]）绘制；见 [initTelegramBubbleTheme]
+ * - 发送文本时，优先表现“输入框中的文字飞入消息列表”
  */
 class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
+
+    private data class InputTextSnapshot(
+        val textRect: RectF,
+        val bubbleRect: RectF,
+        val multiline: Boolean,
+    )
+
+    private data class PendingSendAnimation(
+        val messageId: Long,
+        val text: String,
+        val startSnapshot: InputTextSnapshot,
+    )
 
     /** RecyclerView 适配器（负责将不同消息类型映射为对应的 Cell） */
     private lateinit var adapter: TgTextMessageAdapter
@@ -28,6 +47,17 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
     private var nextId = 1L
     private var recyclerWidth: Int = 0
     private val precomputeExecutor = Executors.newSingleThreadExecutor()
+    private val pendingSendQueue = ArrayDeque<PendingSendAnimation>()
+    private val animatingMessageIds = LinkedHashSet<Long>()
+    private var activeSendAnimation: PendingSendAnimation? = null
+    private var activeTextEnterTransition: TgTextMessageEnterTransition? = null
+    private val pendingHolderAttachListener = object : RecyclerView.OnChildAttachStateChangeListener {
+        override fun onChildViewAttachedToWindow(view: View) {
+            maybeProcessPendingSendAnimation()
+        }
+
+        override fun onChildViewDetachedFromWindow(view: View) = Unit
+    }
 
     /** 从相册选 1～2 张图：一张为全宽单图，两张为并排双图（对齐 Telegram 相册） */
     private val pickImageLauncher = registerForActivityResult(
@@ -54,12 +84,23 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
 
     override fun onViewCreated(savedInstanceState: Bundle?) {
         initTelegramBubbleTheme()
-        // 设置标题并初始化页面结构
         title = "TG 文本消息"
         setupRecycler()
         setupInput()
         setupFuncTest()
         seedMessages()
+    }
+
+    override fun onDestroy() {
+        activeTextEnterTransition?.cancel()
+        activeTextEnterTransition = null
+        binding.sendAnimationOverlay.clearTransitions()
+        activeSendAnimation = null
+        animatingMessageIds.clear()
+        pendingSendQueue.clear()
+        binding.recyclerView.removeOnChildAttachStateChangeListener(pendingHolderAttachListener)
+        precomputeExecutor.shutdownNow()
+        super.onDestroy()
     }
 
     /**
@@ -72,7 +113,7 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
     }
 
     private fun setupFuncTest() {
-        binding.funcTestButton.setOnClickListener { view: android.view.View ->
+        binding.funcTestButton.setOnClickListener { view: View ->
             val popup = android.widget.PopupMenu(this, view)
             popup.menu.add("文本消息编辑功能")
             popup.setOnMenuItemClickListener { item ->
@@ -100,7 +141,6 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
     }
 
     private fun setupRecycler() {
-        // 创建适配器并配置列表滚动方向为自底向上（最新消息在底部）
         adapter = TgTextMessageAdapter { item, view ->
             showEditMenu(item, view)
         }
@@ -108,9 +148,8 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
             stackFromEnd = true
         }
         binding.recyclerView.adapter = adapter
-        // 使用与 ChatActivity 对齐的列表项动画
         binding.recyclerView.itemAnimator = TgChatListItemAnimator()
-        // 头像装饰器：非自己消息显示头像，同一分组只显示一个
+        binding.recyclerView.addOnChildAttachStateChangeListener(pendingHolderAttachListener)
         binding.recyclerView.addItemDecoration(AvatarGroupDecoration(adapter))
         val density = resources.displayMetrics.density
         binding.recyclerView.addItemDecoration(ChatVerticalSpaceDecoration((6f * density).toInt()))
@@ -120,7 +159,7 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
         }
     }
 
-    private fun showEditMenu(item: TgMessageItem.Text, view: android.view.View) {
+    private fun showEditMenu(item: TgMessageItem.Text, view: View) {
         val popup = android.widget.PopupMenu(this, view)
         popup.menu.add("编辑消息")
         popup.setOnMenuItemClickListener { menuItem ->
@@ -134,25 +173,23 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
         popup.show()
     }
 
-    // 记录当前正在编辑的消息
     private var editingMessageId: Long? = null
 
     private fun showEditDialog(item: TgMessageItem.Text) {
         editingMessageId = item.id
-        // 回显内容到输入框
         binding.inputEdit.setText(item.text)
         binding.inputEdit.setSelection(item.text.length)
-        // 聚焦并弹出键盘
         binding.inputEdit.requestFocus()
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
         imm.showSoftInput(binding.inputEdit, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-        
-        // 更改发送按钮文案为“编辑”
         binding.sendButton.text = "编辑"
     }
 
     private fun updateMessageText(item: TgMessageItem.Text, newText: String) {
-        val hasExtra = !item.quote.isNullOrBlank() || !item.translation.isNullOrBlank() || !item.reactions.isNullOrBlank() || !item.userName.isNullOrBlank()
+        val hasExtra = !item.quote.isNullOrBlank() ||
+            !item.translation.isNullOrBlank() ||
+            !item.reactions.isNullOrBlank() ||
+            !item.userName.isNullOrBlank()
         precomputeExecutor.execute {
             val pack = TgTextLayoutPrecomputer.precompute(
                 text = newText,
@@ -166,7 +203,6 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
             runOnUiThread {
                 val idx = items.indexOfFirst { it is TgMessageItem.Text && it.id == item.id }
                 if (idx >= 0) {
-                    // 移除 TransitionManager，改用我们自己的动画系统（BaseTgMessageCell.runTransition）
                     val old = items[idx] as TgMessageItem.Text
                     val updated = old.copy(text = newText, layoutPack = pack)
                     items[idx] = updated
@@ -177,16 +213,13 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
     }
 
     private fun setupInput() {
-        // 发送按钮点击：区分是发送新消息还是提交编辑
         binding.sendButton.setOnClickListener {
             val raw = binding.inputEdit.text?.toString().orEmpty()
-            val sanitized = raw.replace("\r\n", " ").replace("\n", " ")
-            val text = if (sanitized.isBlank()) "空消息" else sanitized
-            binding.inputEdit.setText("")
-            
+            val text = normalizeOutgoingText(raw)
             val editId = editingMessageId
+
             if (editId != null) {
-                // 提交编辑
+                binding.inputEdit.setText("")
                 val index = items.indexOfFirst { it.id == editId && it is TgMessageItem.Text }
                 if (index >= 0) {
                     val item = items[index] as TgMessageItem.Text
@@ -194,13 +227,12 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
                         updateMessageText(item, text)
                     }
                 }
-                // 重置状态
                 editingMessageId = null
                 binding.sendButton.text = "发送"
-                // 键盘不收起，方便用户继续输入
             } else {
-                // 发送新消息
-                addMessage(text, fromMe = true)
+                val startSnapshot = captureInputTextSnapshot(text)
+                binding.inputEdit.setText("")
+                sendTextMessageWithFlyAnimation(text, startSnapshot)
             }
         }
         binding.demoAllButton.setOnClickListener {
@@ -260,44 +292,221 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
     }
 
     private fun seedMessages() {
-        // 预置若干条不同类型的消息，便于演示多种气泡与时间布局
         items.add(makeTextItem("这个页面只保留 TG 文本消息的渲染逻辑", false, "09:41", "Ralph Edwards", "引用文本示例", "这是翻译文本的示例", "👍 ❤️ 🎉"))
-        // 多条图片：右/左交替；含一条双列占位（参考 Telegram 并排相册 + 底部时间渐变）
         items.add(makeImageItem(fromMe = true, time = "09:42"))
         items.add(makeImageItem(fromMe = false, time = "09:42"))
         items.add(makeImageItem(fromMe = true, time = "11:53", albumDual = true))
         items.add(makeImageItem(fromMe = false, time = "09:43"))
         items.add(makeImageItem(fromMe = true, time = "09:44"))
-        items.add(
-            TgMessageItem.Video(
-                id = nextId++,
-                fromMe = false,
-                time = "09:43"
-            )
-        )
-        items.add(
-            TgMessageItem.File(
-                id = nextId++,
-                name = "design_spec.pdf",
-                size = "2.4 MB",
-                fromMe = true,
-                time = "09:44"
-            )
-        )
+        items.add(TgMessageItem.Video(id = nextId++, fromMe = false, time = "09:43"))
+        items.add(TgMessageItem.File(id = nextId++, name = "design_spec.pdf", size = "2.4 MB", fromMe = true, time = "09:44"))
         items.add(makeTextItem("发送消息在右侧显示", true, "09:45", null, null, null, null))
-        // 使用 ListAdapter 的 submitList 提交不可变列表，触发 Diff 刷新
         adapter.submitList(items.toList())
-        // 保持滚动在最新消息位置
         binding.recyclerView.scrollToPosition(adapter.itemCount - 1)
     }
 
-    private fun addMessage(text: String, fromMe: Boolean) {
-        // 追加一条文本消息并触发列表刷新与滚动
-        items.add(makeTextItem(text, fromMe, formatTime(nextId), null, null, null, null))
+    private fun sendTextMessageWithFlyAnimation(text: String, startSnapshot: InputTextSnapshot) {
+        val item = makeTextItem(text, fromMe = true, formatTime(nextId), null, null, null, null)
+        items.add(item)
+        animatingMessageIds.add(item.id)
+        adapter.hidePendingMessage(item.id)
+        val pending = PendingSendAnimation(item.id, text, startSnapshot)
         adapter.submitList(items.toList()) {
             binding.recyclerView.scrollToPosition(adapter.itemCount - 1)
+            pendingSendQueue.addLast(pending)
+            maybeProcessPendingSendAnimation()
         }
     }
+
+    private fun maybeProcessPendingSendAnimation() {
+        if (activeSendAnimation != null || pendingSendQueue.isEmpty()) return
+        val pending = pendingSendQueue.first()
+        val holder = binding.recyclerView.findViewHolderForItemId(pending.messageId) as? TgTextMessageAdapter.TextVH
+        if (holder == null) {
+            binding.recyclerView.postOnAnimation {
+                if (activeSendAnimation == null && pendingSendQueue.isNotEmpty()) {
+                    binding.recyclerView.scrollToPosition(adapter.itemCount - 1)
+                    maybeProcessPendingSendAnimation()
+                }
+            }
+            return
+        }
+        pendingSendQueue.removeFirst()
+        activeSendAnimation = pending
+        startPendingSendAnimationWhenReady(pending, holder)
+    }
+
+    private fun startPendingSendAnimationWhenReady(
+        pending: PendingSendAnimation,
+        holder: TgTextMessageAdapter.TextVH
+    ) {
+        if (!holder.itemView.isLaidOut || holder.itemView.width == 0 || holder.itemView.height == 0) {
+            holder.itemView.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    if (!holder.itemView.viewTreeObserver.isAlive) {
+                        return true
+                    }
+                    holder.itemView.viewTreeObserver.removeOnPreDrawListener(this)
+                    if (binding.recyclerView.findViewHolderForItemId(pending.messageId) === holder) {
+                        startPendingSendAnimation(pending, holder)
+                    } else {
+                        finishPendingSendAnimation(pending, holder = null)
+                    }
+                    return true
+                }
+            })
+            holder.itemView.invalidate()
+            return
+        }
+        startPendingSendAnimation(pending, holder)
+    }
+
+    private fun startPendingSendAnimation(
+        pending: PendingSendAnimation,
+        holder: TgTextMessageAdapter.TextVH
+    ) {
+        val endTextRect = holder.cell.getTextContentRect().offsetInRoot(holder.cell, binding.root)
+        val endBubbleRect = holder.cell.getBubbleRect().offsetInRoot(holder.cell, binding.root)
+        holder.itemView.alpha = 0f
+        holder.itemView.translationY = dp(10f)
+        holder.itemView.scaleX = 0.985f
+        holder.itemView.scaleY = 0.985f
+        activeTextEnterTransition?.cancel()
+        activeTextEnterTransition = TgTextMessageEnterTransition(
+            rootView = binding.root,
+            container = binding.sendAnimationOverlay,
+            sourceTextRect = pending.startSnapshot.textRect,
+            sourceBubbleRect = pending.startSnapshot.bubbleRect,
+            targetTextRect = endTextRect,
+            targetBubbleRect = endBubbleRect,
+            text = pending.text,
+            multiline = pending.startSnapshot.multiline,
+            onProgress = { progress ->
+                applyEnterViewTransitionState(progress)
+                val reveal = ((progress - 0.58f) / 0.42f).coerceIn(0f, 1f)
+                holder.itemView.alpha = reveal
+                holder.itemView.translationY = dp(10f) * (1f - reveal)
+                val scale = 0.985f + 0.015f * reveal
+                holder.itemView.scaleX = scale
+                holder.itemView.scaleY = scale
+            },
+            onFinished = {
+                activeTextEnterTransition = null
+                finishPendingSendAnimation(pending, holder)
+            }
+        ).also { transition ->
+            transition.start()
+        }
+    }
+
+    private fun finishPendingSendAnimation(
+        pending: PendingSendAnimation,
+        holder: TgTextMessageAdapter.TextVH?
+    ) {
+        applyEnterViewTransitionState(1f)
+        adapter.showPendingMessage(pending.messageId)
+        animatingMessageIds.remove(pending.messageId)
+        holder?.itemView?.apply {
+            alpha = 1f
+            translationY = 0f
+            scaleX = 1f
+            scaleY = 1f
+        }
+        activeSendAnimation = null
+        maybeProcessPendingSendAnimation()
+    }
+
+    private fun applyEnterViewTransitionState(progress: Float) {
+        val clamped = progress.coerceIn(0f, 1f)
+        val sendButtonProgress = (clamped / 0.4f).coerceIn(0f, 1f)
+        binding.inputEdit.alpha = clamped
+        binding.inputEdit.translationY = dp(6f) * (1f - clamped)
+        binding.sendButton.alpha = sendButtonProgress
+        binding.sendButton.translationX = dp(18f) * (1f - sendButtonProgress)
+        binding.demoAllButton.alpha = 0.5f + 0.5f * sendButtonProgress
+    }
+
+    private fun captureInputTextSnapshot(text: String): InputTextSnapshot {
+        val edit = binding.inputEdit
+        val inputRect = edit.rectInRoot(binding.root)
+        val innerLeft = inputRect.left + edit.totalPaddingLeft
+        val innerTop = inputRect.top + edit.totalPaddingTop
+        val innerRight = inputRect.right - edit.totalPaddingRight
+        val innerBottom = inputRect.bottom - edit.totalPaddingBottom
+        val layout = edit.layout
+
+        if (layout == null) {
+            val width = edit.paint.measureText(text).coerceAtLeast(dp(20f))
+            val height = edit.lineHeight.toFloat().coerceAtLeast(dp(20f))
+            val textRect = RectF(
+                innerLeft,
+                innerTop,
+                min(innerRight, innerLeft + width),
+                min(innerBottom, innerTop + height)
+            )
+            return InputTextSnapshot(textRect, expandBubbleRect(textRect), false)
+        }
+
+        val contentHeight = max(1, edit.height - edit.totalPaddingTop - edit.totalPaddingBottom)
+        val firstVisibleLine = layout.getLineForVertical(edit.scrollY.coerceAtLeast(0))
+        val lastVisibleLine = layout.getLineForVertical((edit.scrollY + contentHeight - 1).coerceAtLeast(0))
+        var minLineLeft = Float.MAX_VALUE
+        var maxLineRight = 0f
+        for (line in firstVisibleLine..lastVisibleLine) {
+            minLineLeft = min(minLineLeft, layout.getLineLeft(line))
+            maxLineRight = max(maxLineRight, layout.getLineRight(line))
+        }
+
+        if (minLineLeft == Float.MAX_VALUE || maxLineRight <= minLineLeft) {
+            val fallbackWidth = edit.paint.measureText(text).coerceAtLeast(dp(20f))
+            maxLineRight = minLineLeft.takeIf { it != Float.MAX_VALUE } ?: 0f
+            maxLineRight += fallbackWidth
+            minLineLeft = 0f
+        }
+
+        val textLeft = (innerLeft - edit.scrollX + minLineLeft).coerceIn(innerLeft, innerRight)
+        val textRight = (innerLeft - edit.scrollX + maxLineRight).coerceIn(textLeft + dp(1f), innerRight)
+        val textTop = (innerTop - edit.scrollY + layout.getLineTop(firstVisibleLine)).coerceIn(innerTop, innerBottom)
+        val textBottom = (innerTop - edit.scrollY + layout.getLineBottom(lastVisibleLine)).coerceIn(textTop + dp(1f), innerBottom)
+        val textRect = RectF(textLeft, textTop, textRight, textBottom)
+        return InputTextSnapshot(textRect, expandBubbleRect(textRect), firstVisibleLine != lastVisibleLine)
+    }
+
+    private fun expandBubbleRect(textRect: RectF): RectF = RectF(
+        textRect.left - dp(12f),
+        textRect.top - dp(8f),
+        textRect.right + dp(16f),
+        textRect.bottom + dp(8f)
+    )
+
+    private fun normalizeOutgoingText(raw: String): String {
+        val normalized = raw.replace("\r\n", "\n")
+        if (normalized.isBlank()) return "空消息"
+        val trimmed = normalized.trimEnd('\n', '\r')
+        return if (trimmed.isBlank()) "空消息" else trimmed
+    }
+
+    private fun View.rectInRoot(root: View): RectF {
+        val rootLocation = IntArray(2)
+        val viewLocation = IntArray(2)
+        root.getLocationOnScreen(rootLocation)
+        getLocationOnScreen(viewLocation)
+        val left = viewLocation[0] - rootLocation[0].toFloat()
+        val top = viewLocation[1] - rootLocation[1].toFloat()
+        return RectF(left, top, left + width.toFloat(), top + height.toFloat())
+    }
+
+    private fun RectF.offsetInRoot(sourceView: View, root: View): RectF {
+        val sourceRect = sourceView.rectInRoot(root)
+        return RectF(
+            sourceRect.left + left,
+            sourceRect.top + top,
+            sourceRect.left + right,
+            sourceRect.top + bottom
+        )
+    }
+
+    private fun dp(value: Float): Float = value * resources.displayMetrics.density
 
     private fun makeTextItem(
         text: String,
@@ -309,7 +518,10 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
         reactions: String?
     ): TgMessageItem.Text {
         val id = nextId++
-        val hasExtra = !quote.isNullOrBlank() || !translation.isNullOrBlank() || !reactions.isNullOrBlank() || !userName.isNullOrBlank()
+        val hasExtra = !quote.isNullOrBlank() ||
+            !translation.isNullOrBlank() ||
+            !reactions.isNullOrBlank() ||
+            !userName.isNullOrBlank()
         if (recyclerWidth > 0) {
             schedulePrecompute(id, text, fromMe, time, hasExtra)
         }
@@ -367,14 +579,12 @@ class TgTextChatActivity : BaseActivity<ActivityTgTextChatBinding>() {
     }
 
     private fun formatTime(seed: Long): String {
-        // 简化的时间格式：以 seed 计算小时与分钟，形成 HH:mm
         val minute = (seed % 60).toInt().toString().padStart(2, '0')
         val hour = ((seed / 60) % 24).toInt().toString().padStart(2, '0')
         return "$hour:$minute"
     }
 
     companion object {
-        /** 跳转到本页面的便捷方法 */
         fun newInstance(context: Context) {
             context.startActivity(Intent(context, TgTextChatActivity::class.java))
         }

@@ -1,5 +1,10 @@
 <resources>
     <string name="app_name">StudyDemo</string>
-    <string name="title_activity_first_compose">FirstComposeActivity</string>
+    <string name="compose_entry">Compose Entry</string>
+    <string name="compose_title">Jetpack Compose</string>
+    <string name="compose_description">Compose 已成功接入，可以与现有 ViewBinding 页面共存。</string>
+    <string name="compose_counter">点击次数：%1$d</string>
+    <string name="compose_increment">增加计数</string>
+    <string name="compose_back">返回首页</string>
     <string name="full_text_entry">FullText Entry</string>
 </resources>

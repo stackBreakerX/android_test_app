@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:padding="12dp"
+    tools:context=".module_flow.FlowCompareActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvIntro"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:lineSpacingExtra="2dp"
+            android:text="对比要点：\n1) StateFlow：有初始值、始终持有“当前状态”，新收集器立刻收到当前值；更新是合并(conflated)，慢收集器可能跳过中间值。\n2) SharedFlow：更像“事件广播”，默认无初始值；是否回放由 replay 决定；emit/tryEmit 与缓冲区、慢收集器有关。\n\n操作建议：先不加收集器点几次发射；再新增收集器观察 replay=0 / replay=1 / StateFlow 的首次回调差异；打开慢速收集后再 Burst 观察 tryEmit/emit 行为。"
+            android:textColor="@android:color/black"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tvStateValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="StateFlow 当前值：0"
+            android:textColor="@android:color/black"
+            android:textStyle="bold" />
+
+        <CheckBox
+            android:id="@+id/cbSlowCollector"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="慢速收集（每次延迟 120ms）" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnEmitOnce"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="发射一次" />
+
+            <Button
+                android:id="@+id/btnTryEmitBurst"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="TryEmit Burst" />
+
+            <Button
+                android:id="@+id/btnEmitBurst"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="Emit Burst" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnAddSharedCollector"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="+Shared(replay0)" />
+
+            <Button
+                android:id="@+id/btnAddSharedReplayCollector"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="+Shared(replay1)" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnAddStateCollector"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="+State 收集器" />
+
+            <Button
+                android:id="@+id/btnCancelCollectors"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="取消收集器" />
+
+            <Button
+                android:id="@+id/btnClearLog"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="清空日志" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvLog"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="12dp"
+            android:layout_weight="1"
+            android:background="#F3F3F3"
+            android:padding="10dp"
+            android:textColor="@android:color/black"
+            android:textIsSelectable="true"
+            android:textSize="12sp"
+            tools:text="日志输出..." />
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>
+

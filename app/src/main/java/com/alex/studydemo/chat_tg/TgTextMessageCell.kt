@@ -1,6 +1,7 @@
 package com.alex.studydemo.chat_tg
 
 import android.content.Context
+import android.graphics.RectF
 import android.util.AttributeSet
 import com.alex.studydemo.chat_tg.TgAndroidUtilities.dp
 
@@ -45,4 +46,14 @@ class TgTextMessageCell @JvmOverloads constructor(
         // 而 TransitionManager 已经接管了大小变化。我们只需确保内容淡入淡出）
         bindBase(time, out)
     }
+
+    /**
+     * 供发送 overlay 使用，拿到文本内容区域在 cell 内的精确矩形。
+     */
+    fun getTextContentRect(): RectF = RectF(
+        textContentView.left.toFloat(),
+        textContentView.top.toFloat(),
+        textContentView.right.toFloat(),
+        textContentView.bottom.toFloat()
+    )
 }

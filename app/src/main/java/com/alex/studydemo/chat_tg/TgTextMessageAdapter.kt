@@ -63,6 +63,20 @@ class TgTextMessageAdapter(
     private val onTextMessageClick: ((TgMessageItem.Text, android.view.View) -> Unit)? = null
 ) : ListAdapter<TgMessageItem, RecyclerView.ViewHolder>(Diff) {
 
+    /**
+     * 发送飞入动画期间，先把目标消息隐藏，等 Activity 拿到最终布局后再手动启动动画。
+     * 使用集合是为了兼容连续快速发送时，队列里的多条消息同时处于“待落位”状态。
+     */
+    private val hiddenMessageIds = linkedSetOf<Long>()
+
+    fun hidePendingMessage(messageId: Long) {
+        hiddenMessageIds.add(messageId)
+    }
+
+    fun showPendingMessage(messageId: Long) {
+        hiddenMessageIds.remove(messageId)
+    }
+
     init {
         setHasStableIds(true)
     }
@@ -95,6 +109,7 @@ class TgTextMessageAdapter(
     override fun getItemId(position: Int): Long = getItem(position).id
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        applyPendingFlyInState(holder, getItem(position).id)
         when (val item = getItem(position)) {
             is TgMessageItem.Text -> (holder as TextVH).bind(item)
             is TgMessageItem.Image -> (holder as MediaVH).bindImage(item)
@@ -108,6 +123,7 @@ class TgTextMessageAdapter(
             onBindViewHolder(holder, position)
             return
         }
+        applyPendingFlyInState(holder, getItem(position).id)
         when (val item = getItem(position)) {
             is TgMessageItem.Text -> {
                 val textHolder = holder as TextVH
@@ -130,6 +146,15 @@ class TgTextMessageAdapter(
             }
             else -> onBindViewHolder(holder, position)
         }
+    }
+
+    private fun applyPendingFlyInState(holder: RecyclerView.ViewHolder, itemId: Long) {
+        holder.itemView.animate().cancel()
+        holder.itemView.translationX = 0f
+        holder.itemView.translationY = 0f
+        holder.itemView.scaleX = 1f
+        holder.itemView.scaleY = 1f
+        holder.itemView.alpha = if (itemId in hiddenMessageIds) 0f else 1f
     }
 
     class TextVH(

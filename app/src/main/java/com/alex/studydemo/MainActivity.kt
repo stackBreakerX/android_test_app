@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.alex.studydemo.arouter.ArouterMainActivity
 import com.alex.studydemo.module_coroutine.ChannelActivity
+import com.alex.studydemo.module_compose.ComposeDemoActivity
 import com.alex.studydemo.module_recyclerview.RecyclerViewActivity
 import com.alex.studydemo.module_room.RoomActivity
 import com.alex.studydemo.module_view.CustomerViewActivity
@@ -99,6 +100,9 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
             MainEntry("Arouter Entry") { ArouterMainActivity.newInstance(this) },
             MainEntry("Hilt Entry") { /* Hilt demo 已下线，如需可恢复 */ },
             MainEntry("Coroutine Entry") { ChannelActivity.newInstance(this) },
+            MainEntry(getString(R.string.compose_entry)) {
+                startActivity(Intent(this, ComposeDemoActivity::class.java))
+            },
             MainEntry("RecyclerView Entry") {
                 ARouter.getInstance()
                     .build(RecyclerViewActivity.PATH)

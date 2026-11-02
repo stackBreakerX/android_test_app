@@ -39,6 +39,11 @@ class AnimationsEntryActivity : BaseActivity<ActivityAnimationsEntryBinding>() {
                 startActivity(Intent(this, ChatInputAnimActivity::class.java))
             }
         )
+        items.add(
+            Entry("iOS 信息侧滑按钮 (Compose)") {
+                startActivity(Intent(this, com.alex.studydemo.module_animation.swipe.SwipeActionsActivity::class.java))
+            }
+        )
         (binding.recycler.adapter as EntryAdapter).submit(items.toList())
     }
 

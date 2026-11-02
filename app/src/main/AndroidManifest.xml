@@ -135,6 +135,9 @@
             android:name=".module_animation.ChatInputAnimActivity"
             android:exported="false" />
         <activity
+            android:name=".module_animation.swipe.SwipeActionsActivity"
+            android:exported="false" />
+        <activity
             android:name=".chat_tg.TgTextChatActivity"
             android:exported="false" /> <!-- FileProvider 配置 -->
         <provider

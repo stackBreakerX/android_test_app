@@ -16,3 +16,31 @@ local.properties
 /.idea/
 /.kotlin/
 /gradle-home/
+
+# IDE / 编辑器
+/.vscode/
+/.fleet/
+*.swp
+*~
+
+# AI 助手本地配置
+/.claude/
+CLAUDE.local.md
+
+# 构建产物
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+output-metadata.json
+/app/release/
+/app/debug/
+
+# 签名文件（不要提交到仓库）
+*.jks
+*.keystore
+
+# 日志与性能分析
+*.log
+*.hprof

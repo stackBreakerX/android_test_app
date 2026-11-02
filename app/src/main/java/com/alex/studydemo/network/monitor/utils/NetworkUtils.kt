@@ -42,7 +42,7 @@ object NetworkUtils {
         val nType = networkInfo.type
 
         if (nType == ConnectivityManager.TYPE_MOBILE) {
-            if (networkInfo.extraInfo.toLowerCase() == "cmnet") {
+            if (networkInfo.extraInfo?.lowercase() == "cmnet") {
 
             } else {
                 return NetType.CMWAP

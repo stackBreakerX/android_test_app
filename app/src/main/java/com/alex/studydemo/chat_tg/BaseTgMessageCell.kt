@@ -952,6 +952,11 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
     }
 
     /**
+     * 供发送 overlay 使用，拿到当前绘制中的气泡矩形（cell 坐标系，返回新对象）。
+     */
+    fun getBubbleRect(): RectF = getDrawBubbleRect(RectF())
+
+    /**
      * 线性插值：在 [start] 和 [end] 之间按 [progress] 比例取值。
      * progress=0 → start，progress=1 → end，中间值为两端的加权平均。
      *

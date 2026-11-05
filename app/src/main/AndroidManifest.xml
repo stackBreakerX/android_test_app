@@ -25,7 +25,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.StudyDemo">
         <activity
-            android:name=".compose.MuteStateOfActivity"
+            android:name=".module_compose.state.ComposeStateActivity"
             android:exported="false" />
         <activity
             android:name=".module_coroutine.ChannelActivity"
@@ -33,6 +33,10 @@
             android:launchMode="singleTask" />
         <activity
             android:name=".module_compose.ComposeDemoActivity"
+            android:exported="false" />
+        <!-- Compose 示例通过统一目录进入，各自 Activity 只负责对应演示。 -->
+        <activity
+            android:name=".module_compose.modal.IosModalDemoActivity"
             android:exported="false" />
         <activity
             android:name=".module_recyclerview.RecyclerViewAnimationActivity"
@@ -135,7 +139,7 @@
             android:name=".module_animation.ChatInputAnimActivity"
             android:exported="false" />
         <activity
-            android:name=".module_animation.swipe.SwipeActionsActivity"
+            android:name=".module_compose.swipe.SwipeActionsActivity"
             android:exported="false" />
         <activity
             android:name=".chat_tg.TgTextChatActivity"

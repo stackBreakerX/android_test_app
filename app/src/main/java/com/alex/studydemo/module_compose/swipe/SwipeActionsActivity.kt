@@ -1,4 +1,4 @@
-package com.alex.studydemo.module_animation.swipe
+package com.alex.studydemo.module_compose.swipe
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

@@ -85,6 +85,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
     override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityMainBinding =
         ActivityMainBinding.inflate(inflater)
 
+    /** 首页按模块提供入口；Compose 示例集中在目录页选择，避免具体演示分散在首页。 */
     override fun onViewCreated(savedInstanceState: Bundle?) {
         ARouter.getInstance().inject(this)
 

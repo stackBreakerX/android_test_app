@@ -30,6 +30,7 @@ object NetworkUtils {
         return false
     }
 
+    /** 根据当前网络识别连接类型；移动网络继续按接入点名称区分 CMNET 与 CMWAP。 */
     fun getNetType(): NetType {
         val connMgr = NetworkManager.getDefault().mApplication
             .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -42,7 +43,8 @@ object NetworkUtils {
         val nType = networkInfo.type
 
         if (nType == ConnectivityManager.TYPE_MOBILE) {
-            if (networkInfo.extraInfo?.lowercase() == "cmnet") {
+            // 忽略大小写比较不依赖设备语言，也兼容 Kotlin 2.2 对旧转换 API 的移除。
+            if (networkInfo.extraInfo.equals("cmnet", ignoreCase = true)) {
 
             } else {
                 return NetType.CMWAP

@@ -29,7 +29,7 @@ internal class IosModalMotion(private val scope: CoroutineScope) {
     /** 新手势接管当前位置，不重置到锚点，因此可以接住正在回弹的卡片。 */
     fun stop() { animation?.cancel() }
 
-    /** [delta] 与 [height] 单位均为 px，返回实际消费的位移，剩余量交回滚动内容。 */
+    /** [delta] 与 [height] 单位均为 px；height 为完全隐藏所需行程，含浮层底部留白，返回实际消费位移。 */
     fun dragBy(delta: Float, height: Float): Float {
         stop()
         val old = hiddenFraction

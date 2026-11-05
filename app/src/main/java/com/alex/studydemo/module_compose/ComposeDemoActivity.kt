@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alex.studydemo.module_compose.modal.IosModalDemoActivity
+import com.alex.studydemo.module_compose.components.iosmodal.IosModalPresentationStyle
 import com.alex.studydemo.module_compose.state.ComposeStateActivity
 import com.alex.studydemo.module_compose.swipe.SwipeActionsActivity
 
@@ -52,8 +53,20 @@ class ComposeDemoActivity : ComponentActivity() {
                         )
                         LazyColumn {
                             item {
-                                ComposeEntry("iOS 模态弹窗", "底部卡片、跟手拖动、列表滚动衔接", "compose_entry_modal") {
+                                ComposeEntry("iOS 模态弹窗（背景缩放）", "底部卡片、跟手拖动、列表滚动衔接", "compose_entry_modal") {
                                     startActivity(Intent(this@ComposeDemoActivity, IosModalDemoActivity::class.java))
+                                }
+                            }
+                            item {
+                                ComposeEntry("iOS 模态弹窗（背景固定）", "背景保持原尺寸、四角圆角浮层", "compose_entry_overlay") {
+                                    // 与缩放样式共用业务内容，只通过配置切换呈现方式，便于直接对比。
+                                    startActivity(
+                                        Intent(this@ComposeDemoActivity, IosModalDemoActivity::class.java)
+                                            .putExtra(
+                                                IosModalDemoActivity.EXTRA_PRESENTATION_STYLE,
+                                                IosModalPresentationStyle.Overlay.name,
+                                            ),
+                                    )
                                 }
                             }
                             item {

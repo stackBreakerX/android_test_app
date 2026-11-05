@@ -52,22 +52,35 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alex.studydemo.module_compose.components.iosmodal.IosModal
 import com.alex.studydemo.module_compose.components.iosmodal.IosModalProperties
+import com.alex.studydemo.module_compose.components.iosmodal.IosModalPresentationStyle
 
 /** 模态组件使用示例；页面只提供显示状态和业务内容，手势与动画由 IosModal 处理。 */
 class IosModalDemoActivity : ComponentActivity() {
+    companion object {
+        /** 目录通过枚举名称选择呈现样式；缺失或未知值均使用原有背景缩放样式。 */
+        const val EXTRA_PRESENTATION_STYLE = "ios_modal_presentation_style"
+    }
+
     /** 开启边到边绘制，页面和模态分别消费自己的安全区。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { IosModalDemo(onBack = ::finish) }
+        val requestedStyle = intent.getStringExtra(EXTRA_PRESENTATION_STYLE)
+        val presentationStyle = IosModalPresentationStyle.entries.firstOrNull { it.name == requestedStyle }
+            ?: IosModalPresentationStyle.Stacked
+        setContent { IosModalDemo(onBack = ::finish, presentationStyle = presentationStyle) }
     }
 }
 
 private val IosBlue = Color(0xFF007AFF)
 
-/** 演示短卡片与可滚动长卡片；配置变化后恢复当前弹窗及用户选择。 */
+/** 两种呈现方式共用短卡片和长列表；配置变化后恢复当前弹窗及用户选择。 */
 @Composable
-fun IosModalDemo(onBack: () -> Unit = {}) {
+fun IosModalDemo(
+    onBack: () -> Unit = {},
+    presentationStyle: IosModalPresentationStyle = IosModalPresentationStyle.Stacked,
+) {
+    val overlay = presentationStyle == IosModalPresentationStyle.Overlay
     val dark = isSystemInDarkTheme()
     val colors = if (dark) darkColorScheme(
         primary = Color(0xFF0A84FF),
@@ -95,6 +108,7 @@ fun IosModalDemo(onBack: () -> Unit = {}) {
                 title = if (sheetKind == "compact") "分享设置" else "选择目的地",
                 properties = IosModalProperties(
                     heightFraction = if (sheetKind == "compact") 0.68f else 0.92f,
+                    presentationStyle = presentationStyle,
                 ),
                 sheetContent = { dismiss ->
                     if (sheetKind == "compact") {
@@ -115,9 +129,9 @@ fun IosModalDemo(onBack: () -> Unit = {}) {
                 ) {
                     TextButton(onClick = onBack) { Text("‹ Compose 示例", fontSize = 17.sp) }
                     Spacer(Modifier.height(20.dp))
-                    Text("模态弹窗", fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                    Text(if (overlay) "浮层模态" else "模态弹窗", fontSize = 34.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        "COMPOSE · iOS STYLE",
+                        if (overlay) "COMPOSE · OVERLAY" else "COMPOSE · STACKED",
                         modifier = Modifier.padding(top = 8.dp),
                         style = MaterialTheme.typography.labelMedium,
                         color = colors.onSurfaceVariant,
@@ -133,10 +147,18 @@ fun IosModalDemo(onBack: () -> Unit = {}) {
                                 Text("↑", fontSize = 30.sp, color = colors.primary)
                             }
                             Spacer(Modifier.height(20.dp))
-                            Text("从底部，轻轻展开", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                if (overlay) "浮在当前页面上方" else "从底部，轻轻展开",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                             Spacer(Modifier.height(10.dp))
                             Text(
-                                "打开一张卡片，试试向下拖动。背后的页面会随手势缩放，松手后关闭或回弹。",
+                                if (overlay) {
+                                    "背景保持原尺寸和位置，卡片独立滑入。试试向下拖动，松手后关闭或回弹。"
+                                } else {
+                                    "打开一张卡片，试试向下拖动。背后的页面会随手势缩放，松手后关闭或回弹。"
+                                },
                                 color = colors.onSurfaceVariant,
                                 lineHeight = 23.sp,
                             )
@@ -146,7 +168,7 @@ fun IosModalDemo(onBack: () -> Unit = {}) {
                                 modifier = Modifier.fillMaxWidth().testTag("open_compact"),
                                 shape = RoundedCornerShape(14.dp),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                            ) { Text("打开模态弹窗", fontSize = 17.sp) }
+                            ) { Text(if (overlay) "打开浮层模态" else "打开模态弹窗", fontSize = 17.sp) }
                         }
                     }
                     Spacer(Modifier.height(28.dp))

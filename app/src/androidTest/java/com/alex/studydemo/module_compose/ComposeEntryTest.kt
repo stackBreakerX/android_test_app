@@ -42,6 +42,19 @@ class ComposeEntryTest {
         compose.onNodeWithText("点击次数：1").assertIsDisplayed()
     }
 
+    /** 新入口必须把 Overlay 配置传给演示页，关闭卡片后仍停留在同一示例。 */
+    @Test
+    fun overlayEntryUsesFixedBackgroundPresentation() {
+        compose.onNodeWithTag("compose_entry_overlay").performClick()
+        waitForScreen(hasText("浮层模态"))
+        compose.onNodeWithTag("open_compact").performClick()
+        waitForScreen(hasTestTag("ios_modal_sheet"))
+        compose.onNodeWithText("完成").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("ios_modal_sheet").assertDoesNotExist()
+        compose.onNodeWithText("浮层模态").assertIsDisplayed()
+    }
+
     /** 跨 Activity 切换可能短暂无 Compose 根节点，需要等待目标页面首帧而非立即断言。 */
     private fun waitForScreen(matcher: SemanticsMatcher) {
         compose.waitUntil(timeoutMillis = 5000) {

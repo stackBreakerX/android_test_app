@@ -27,6 +27,7 @@ class AnimationsEntryActivity : BaseActivity<ActivityAnimationsEntryBinding>() {
         buildEntries()
     }
 
+    /** 此处列出 View 动画示例；Compose 侧滑已归入首页的 Compose 示例目录。 */
     private fun buildEntries() {
         items.clear()
         items.add(
@@ -37,11 +38,6 @@ class AnimationsEntryActivity : BaseActivity<ActivityAnimationsEntryBinding>() {
         items.add(
             Entry("Chat 输入框动画") {
                 startActivity(Intent(this, ChatInputAnimActivity::class.java))
-            }
-        )
-        items.add(
-            Entry("iOS 信息侧滑按钮 (Compose)") {
-                startActivity(Intent(this, com.alex.studydemo.module_animation.swipe.SwipeActionsActivity::class.java))
             }
         )
         (binding.recycler.adapter as EntryAdapter).submit(items.toList())

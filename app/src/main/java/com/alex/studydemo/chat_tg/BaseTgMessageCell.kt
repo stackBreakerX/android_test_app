@@ -56,6 +56,9 @@ abstract class BaseTgMessageCell @JvmOverloads constructor(
      */
     private val bubbleRect = RectF()
 
+    /** 返回布局后气泡边界的副本，供发送动画换算坐标，避免调用方修改内部布局状态。 */
+    fun getBubbleRect(): RectF = RectF(bubbleRect)
+
     /**
      * 上一次 [onLayout] 计算出的气泡矩形，在 [prepareTransition] 中作为动画起始值。
      * 用于"动画结束后回写 bubbleRect"的对称逻辑，保持 lastBubbleRect 始终代表布局后的最终位置。

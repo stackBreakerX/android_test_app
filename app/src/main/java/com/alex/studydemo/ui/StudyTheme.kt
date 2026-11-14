@@ -40,6 +40,8 @@ fun StudySystemBars(dark: Boolean) {
     val activity = context as? ComponentActivity ?: return
     // 只在宿主或外观改变时配置窗口；预览等非 Activity 环境不修改窗口。
     DisposableEffect(activity, dark) {
+        // 外观在当前页切换后同步窗口底色，返回和系统手势预览不露出旧颜色。
+        activity.window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(StudyPageTransitions.backgroundColor(dark)))
         val style = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark }
         activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
         onDispose { /* 窗口随宿主销毁；切换页面后由新页面配置自己的系统栏。 */ }

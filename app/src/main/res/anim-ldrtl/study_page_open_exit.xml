@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 新页完整移动，底页仅移动 28% 形成层次；RTL 镜像方向。 -->
+<translate xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fromXDelta="0%p" android:toXDelta="28%p"
+    android:duration="@integer/study_page_open_duration"
+    android:interpolator="@interpolator/study_page_ease"
+    android:zAdjustment="bottom" />

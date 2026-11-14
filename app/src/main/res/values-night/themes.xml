@@ -17,7 +17,8 @@
         <!-- Disable window ActionBar, we use Toolbar via BaseActivity -->
         <item name="windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
-        <!-- Customize your theme here. -->
+        <!-- 所有实验页面共用成对的推入/返回动画，避免不同入口出现不同系统默认效果。 -->
+        <item name="android:windowAnimationStyle">@style/StudyPageWindowAnimation</item>
 
         <!-- 全局 MaterialButton 默认样式接入（夜间与日间统一走主题色） -->
         <item name="materialButtonStyle">@style/Widget.StudyDemo.MaterialButton</item>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 毫秒；同一次打开或关闭的两个窗口必须使用相同时长，返回略快以响应退出意图。 -->
+    <integer name="study_page_open_duration">380</integer>
+    <integer name="study_page_close_duration">340</integer>
+    <!-- 旧系统从窗口主题读取动画；新系统使用同一组资源配置 Activity 转场。 -->
+    <style name="StudyPageWindowAnimation" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/study_page_open_enter</item>
+        <item name="android:activityOpenExitAnimation">@anim/study_page_open_exit</item>
+        <item name="android:activityCloseEnterAnimation">@anim/study_page_close_enter</item>
+        <item name="android:activityCloseExitAnimation">@anim/study_page_close_exit</item>
+    </style>
+</resources>

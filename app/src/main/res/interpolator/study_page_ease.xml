@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 前段快速响应点击，后段平缓减速；同一对前后页面共用曲线，避免相对运动脱节。 -->
+<pathInterpolator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:controlX1="0.22" android:controlY1="0.8"
+    android:controlX2="0.25" android:controlY2="1" />

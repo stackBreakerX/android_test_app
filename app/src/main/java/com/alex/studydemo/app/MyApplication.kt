@@ -13,8 +13,10 @@ import com.alex.studydemo.module_performance.GlobalJankMonitor
  */
 class MyApplication : Application() {
 
+    /** 在创建首个页面前安装转场策略，所有实验共享同一套导航动效。 */
     override fun onCreate() {
         super.onCreate()
+        com.alex.studydemo.ui.StudyPageTransitions.install(this)
         ARouter.openLog()
         ARouter.openDebug()
         Utils.init(this)

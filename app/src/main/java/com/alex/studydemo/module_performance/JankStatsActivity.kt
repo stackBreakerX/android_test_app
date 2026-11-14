@@ -1,19 +1,18 @@
 package com.alex.studydemo.module_performance
 
+import com.alex.studydemo.ui.StudyPage
+import com.alex.studydemo.ui.StudyTheme
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.metrics.performance.JankStats
-import com.alex.studydemo.ui.StudyTheme
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -34,10 +33,9 @@ class JankStatsActivity : ComponentActivity() {
         logFile = File(filesDir, "jank_${System.currentTimeMillis()}.txt")
         setContent {
             StudyTheme {
-                Surface(Modifier.fillMaxSize()) {
-                    Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        TextButton(onClick = ::finish) { Text("‹ 返回工程") }
-                        Text("帧率观测", style = MaterialTheme.typography.headlineLarge)
+                StudyPage("帧率观测", onBack = ::finish,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         Text("JankStats · 真实窗口帧耗时", color = MaterialTheme.colorScheme.primary)
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -59,7 +57,6 @@ class JankStatsActivity : ComponentActivity() {
                         if (failure.isNotEmpty()) Text(failure, color = MaterialTheme.colorScheme.error)
                         Text("慢帧阈值：当前刷新周期的 1.2 倍。返回或切到后台时暂停采集。")
                     }
-                }
             }
         }
     }

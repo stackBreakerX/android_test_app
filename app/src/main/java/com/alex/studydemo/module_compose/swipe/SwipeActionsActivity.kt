@@ -1,5 +1,9 @@
 package com.alex.studydemo.module_compose.swipe
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.alex.studydemo.ui.StudyScaffold
+import com.alex.studydemo.ui.StudyTheme
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,18 +29,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,7 +54,7 @@ class SwipeActionsActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            com.alex.studydemo.ui.StudyTheme {
+            StudyTheme {
                 MessagesScreen(onBack = ::finish)
             }
         }
@@ -129,17 +127,7 @@ private fun MessagesScreen(onBack: () -> Unit) {
         if (index >= 0) conversations[index] = transform(conversations[index])
     }
 
-    Scaffold(
-        containerColor = Color.White,
-        topBar = {
-            TopAppBar(
-                title = { Text("信息", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text("‹ 返回", color = IosColors.Blue) }
-                },
-            )
-        },
-    ) { padding ->
+    StudyScaffold(title = "信息", onBack = onBack, containerColor = Color.White) { padding ->
         // 置顶会话排在前面；animateItem 让置顶 / 取消置顶时位置变化有动画
         val sorted = conversations.sortedByDescending { it.pinned }
         LazyColumn(

@@ -1,5 +1,6 @@
 package com.alex.studydemo.chat_tg
 
+import com.alex.studydemo.ui.StudyScaffold
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -9,7 +10,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -93,12 +93,9 @@ internal fun TgComposeChat(
     MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme(
         primary = Color(0xFF287A9C), secondaryContainer = Color(0xFFD8F0DF), background = Color(0xFFEAF0EC)
     )) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Column { Text("TG 聊天", fontWeight = FontWeight.Bold); Text("${messages.size} 条消息 · Compose", style = MaterialTheme.typography.labelSmall) } },
-                    navigationIcon = { TextButton(onClick = onBack) { Text("返回") } },
-                    actions = {
+        StudyScaffold(
+            title = "TG 聊天", subtitle = "${messages.size} 条消息 · Compose", onBack = onBack,
+            actions = {
                         Box {
                             TextButton(onClick = { actions = true }) { Text("选项") }
                             DropdownMenu(expanded = actions, onDismissRequest = { actions = false }) {
@@ -107,8 +104,7 @@ internal fun TgComposeChat(
                                 DropdownMenuItem(text = { Text("聊天显示设置") }, onClick = { actions = false; settings = true })
                             }
                         }
-                    }
-                )
+
             },
             bottomBar = {
                 Surface(tonalElevation = 3.dp) {
@@ -288,15 +284,15 @@ private fun TgComposeBubble(
         onDismissRequest = { previewIndex = -1 }, properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(Modifier.fillMaxSize(), color = Color.Black) {
-            Column(Modifier.statusBarsPadding().navigationBarsPadding().padding(16.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("相册预览", color = Color.White)
-                    TextButton(onClick = { previewIndex = -1 }) { Text("关闭", color = Color.White) }
-                }
+            StudyScaffold("相册预览", containerColor = Color.Black, barColor = Color.Black, barContentColor = Color.White,
+                actions = { TextButton(onClick = { previewIndex = -1 }) { Text("关闭", color = Color.White) } }) { insets ->
+                Column(Modifier.fillMaxSize().padding(insets).padding(16.dp)) {
                 TgComposePhoto(if (previewIndex == 0) item.imageUri else item.secondImageUri, Modifier.weight(1f).fillMaxWidth(), preview = true)
                 if (item.albumDual || item.secondImageUri != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     TextButton(onClick = { previewIndex = 0 }) { Text("第 1 张", color = Color.White) }
                     TextButton(onClick = { previewIndex = 1 }) { Text("第 2 张", color = Color.White) }
+                }
+
                 }
             }
         }

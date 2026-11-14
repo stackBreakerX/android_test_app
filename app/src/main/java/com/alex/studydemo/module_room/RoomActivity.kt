@@ -1,16 +1,15 @@
 package com.alex.studydemo.module_room
 
+import com.alex.studydemo.ui.StudyPage
+import com.alex.studydemo.ui.StudyTheme
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -36,39 +35,43 @@ class RoomActivity : ComponentActivity() {
     /** 数据库延迟到首个 IO 操作创建；不在重组时打开或写入数据库。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { Page("Room 数据库") {
-            OutlinedTextField(content, { content = it }, label = { Text("消息内容") }, modifier = Modifier.fillMaxWidth())
-            Button(enabled = !busy, onClick = { execute("SQL 插入消息") { sqlInsertMessage(it.openHelper.writableDatabase); "已插入 alex is null" } }) { Text("SQL 插入消息") }
-            Button(enabled = !busy, onClick = {
-                val text = content
-                execute("DAO 插入消息") { it.messageDao().insertMessage(MessageEntity().apply { this.content = text }); "已写入：$text" }
-            }) { Text("DAO 插入消息") }
-            Button(enabled = !busy, onClick = { execute("查询消息") { it.messageDao().getMessages().orEmpty().joinToString("\n") } }) { Text("查询消息") }
-            Button(enabled = !busy, onClick = { execute("批量插入 10..15") { db -> "rowIds=${db.userDao().insertList(users(10..15))}" } }) { Text("批量插入用户 10..15") }
-            Button(enabled = !busy, onClick = { execute("更新已有用户") { "影响行数=${it.userDao().updateUser("test", listOf("10", "11", "12", "13"))}" } }) { Text("更新用户 10..13") }
-            Button(enabled = !busy, onClick = { execute("更新 99 / 55") { "影响行数=${it.userDao().updateUser("android 111", listOf("99", "55"))}" } }) { Text("更新 99 / 55（可观察零行）") }
-            Button(enabled = !busy, onClick = { execute("插入并更新冲突") { db ->
-                // IGNORE 返回 -1 表示冲突；插入和补充更新位于同一事务，避免并发读到半完成结果。
-                db.withTransaction {
-                    val batch = users(14..17)
-                    val rowIds = db.userDao().insertList(batch)
-                    val inserted = db.userDao().query(rowIds.filter { it != -1L }.toMutableList())
-                    val conflicts = batch.map { it.userId }.toSet() - inserted.toSet()
-                    db.userDao().updateUserName("哈哈哈", conflicts)
-                    "rowIds=$rowIds\n新增=$inserted\n冲突更新=$conflicts"
+        setContent {
+            StudyTheme {
+                StudyPage("Room 数据库", onBack = { finish() }) {
+                    OutlinedTextField(content, { content = it }, label = { Text("消息内容") }, modifier = Modifier.fillMaxWidth())
+                    Button(enabled = !busy, onClick = { execute("SQL 插入消息") { sqlInsertMessage(it.openHelper.writableDatabase); "已插入 alex is null" } }) { Text("SQL 插入消息") }
+                    Button(enabled = !busy, onClick = {
+                        val text = content
+                        execute("DAO 插入消息") { it.messageDao().insertMessage(MessageEntity().apply { this.content = text }); "已写入：$text" }
+                    }) { Text("DAO 插入消息") }
+                    Button(enabled = !busy, onClick = { execute("查询消息") { it.messageDao().getMessages().orEmpty().joinToString("\n") } }) { Text("查询消息") }
+                    Button(enabled = !busy, onClick = { execute("批量插入 10..15") { db -> "rowIds=${db.userDao().insertList(users(10..15))}" } }) { Text("批量插入用户 10..15") }
+                    Button(enabled = !busy, onClick = { execute("更新已有用户") { "影响行数=${it.userDao().updateUser("test", listOf("10", "11", "12", "13"))}" } }) { Text("更新用户 10..13") }
+                    Button(enabled = !busy, onClick = { execute("更新 99 / 55") { "影响行数=${it.userDao().updateUser("android 111", listOf("99", "55"))}" } }) { Text("更新 99 / 55（可观察零行）") }
+                    Button(enabled = !busy, onClick = { execute("插入并更新冲突") { db ->
+                        // IGNORE 返回 -1 表示冲突；插入和补充更新位于同一事务，避免并发读到半完成结果。
+                        db.withTransaction {
+                            val batch = users(14..17)
+                            val rowIds = db.userDao().insertList(batch)
+                            val inserted = db.userDao().query(rowIds.filter { it != -1L }.toMutableList())
+                            val conflicts = batch.map { it.userId }.toSet() - inserted.toSet()
+                            db.userDao().updateUserName("哈哈哈", conflicts)
+                            "rowIds=$rowIds\n新增=$inserted\n冲突更新=$conflicts"
+                        }
+                    } }) { Text("插入 14..17 并更新冲突用户") }
+                    Button(enabled = !busy, onClick = { execute("DAO 事务") { it.userDao().insertMessageUser(users(99..99).single()); "事务插入并查询用户 99 完成" } }) { Text("DAO @Transaction") }
+                    Button(enabled = !busy, onClick = { execute("协程事务") { db ->
+                        db.withTransaction {
+                            db.userDao().insertUser(users(102..102).single())
+                            "插入 102；更新 999 影响行数=${db.userDao().updateUser("test", listOf("999"))}"
+                        }
+                    } }) { Text("withTransaction") }
+                    Button(enabled = !busy, onClick = { execute("查询用户") { it.userDao().getUsers().joinToString("\n") { user -> "${user.userId}：${user.name}" } } }) { Text("查询用户") }
+                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    SelectionContainer { Text(output) }
                 }
-            } }) { Text("插入 14..17 并更新冲突用户") }
-            Button(enabled = !busy, onClick = { execute("DAO 事务") { it.userDao().insertMessageUser(users(99..99).single()); "事务插入并查询用户 99 完成" } }) { Text("DAO @Transaction") }
-            Button(enabled = !busy, onClick = { execute("协程事务") { db ->
-                db.withTransaction {
-                    db.userDao().insertUser(users(102..102).single())
-                    "插入 102；更新 999 影响行数=${db.userDao().updateUser("test", listOf("999"))}"
-                }
-            } }) { Text("withTransaction") }
-            Button(enabled = !busy, onClick = { execute("查询用户") { it.userDao().getUsers().joinToString("\n") { user -> "${user.userId}：${user.name}" } } }) { Text("查询用户") }
-            if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            SelectionContainer { Text(output) }
-        } }
+            }
+        }
     }
 
     /** 随机名称保留重复插入的可观察差异，用户主键取闭区间内的十进制字符串。 */
@@ -111,21 +114,4 @@ class RoomActivity : ComponentActivity() {
         }
     }
 
-    /** 页面使用应用主题和可滚动内容；返回按钮结束当前 Activity，系统返回沿用默认行为。 */
-    @Composable
-    private fun Page(title: String, content: @Composable ColumnScope.() -> Unit) {
-        com.alex.studydemo.ui.StudyTheme {
-            Scaffold(topBar = {
-                Surface(tonalElevation = 3.dp) {
-                    Row(Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp)) {
-                        TextButton(onClick = { finish() }) { Text("返回") }
-                        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(12.dp))
-                    }
-                }
-            }) { padding ->
-                Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
-            }
-        }
-    }
 }

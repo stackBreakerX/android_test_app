@@ -1,11 +1,12 @@
 package com.alex.studydemo.module_image
 
+import com.alex.studydemo.ui.StudyScaffold
+import com.alex.studydemo.ui.StudyTheme
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -17,16 +18,14 @@ import androidx.compose.ui.unit.dp
 /** 图片实验跟随应用主题，位图内容保持原始颜色，不随明暗主题重新解码。 */
 @Composable
 internal fun ImageDemoTheme(content: @Composable () -> Unit) {
-    com.alex.studydemo.ui.StudyTheme(content = content)
+    StudyTheme(content = content)
 }
 
 /** 独立页面通过 finish 返回调用方；内容接收 Scaffold 内边距，避免遮住系统栏。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ImageDemoScaffold(title: String, onBack: () -> Unit, content: @Composable (PaddingValues) -> Unit) {
-    Scaffold(topBar = {
-        TopAppBar(title = { Text(title) }, navigationIcon = { TextButton(onClick = onBack) { Text("返回") } })
-    }, content = content)
+    StudyScaffold(title = title, onBack = onBack, content = content)
 }
 
 /** 使用 Compose 绘制位图；不主动 recycle，避免渲染线程继续读取已经释放的像素。 */

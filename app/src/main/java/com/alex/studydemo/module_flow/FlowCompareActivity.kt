@@ -1,18 +1,16 @@
 package com.alex.studydemo.module_flow
 
+import com.alex.studydemo.ui.StudyPage
+import com.alex.studydemo.ui.StudyTheme
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -32,7 +30,6 @@ class FlowCompareActivity : ComponentActivity() {
     private var slowCollector by mutableStateOf(false)
     private var stateValue by mutableStateOf(0)
     private var logText by mutableStateOf("")
-
 
     private val sharedFlowReplay0 = MutableSharedFlow<Int>(replay = 0, extraBufferCapacity = 0)
     private val sharedFlowReplay1 = MutableSharedFlow<Int>(replay = 1, extraBufferCapacity = 0)
@@ -58,19 +55,21 @@ class FlowCompareActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            Page("Flow 对比") {
-                Text("StateFlow 当前值：$stateValue")
-                Text("SharedFlow replay=0 / replay=1，额外缓冲均为 0")
-                Row { Checkbox(slowCollector, { slowCollector = it }); Text("慢订阅者（120 ms）") }
-                Button(onClick = { emitOnce() }) { Text("单次 tryEmit") }
-                Button(onClick = { tryEmitBurst() }) { Text("连续 tryEmit 20 次") }
-                Button(onClick = { emitBurstSuspend() }) { Text("挂起 emit 20 次") }
-                Button(onClick = { addSharedCollector(0) }) { Text("添加 SharedFlow replay=0 订阅") }
-                Button(onClick = { addSharedCollector(1) }) { Text("添加 SharedFlow replay=1 订阅") }
-                Button(onClick = { addStateCollector() }) { Text("添加 StateFlow 订阅") }
-                Button(onClick = { cancelCollectors() }) { Text("取消全部订阅") }
-                TextButton(onClick = { logText = "" }) { Text("清空日志") }
-                SelectionContainer { Text(logText) }
+            StudyTheme {
+                StudyPage("Flow 对比", onBack = { finish() }) {
+                    Text("StateFlow 当前值：$stateValue")
+                    Text("SharedFlow replay=0 / replay=1，额外缓冲均为 0")
+                    Row { Checkbox(slowCollector, { slowCollector = it }); Text("慢订阅者（120 ms）") }
+                    Button(onClick = { emitOnce() }) { Text("单次 tryEmit") }
+                    Button(onClick = { tryEmitBurst() }) { Text("连续 tryEmit 20 次") }
+                    Button(onClick = { emitBurstSuspend() }) { Text("挂起 emit 20 次") }
+                    Button(onClick = { addSharedCollector(0) }) { Text("添加 SharedFlow replay=0 订阅") }
+                    Button(onClick = { addSharedCollector(1) }) { Text("添加 SharedFlow replay=1 订阅") }
+                    Button(onClick = { addStateCollector() }) { Text("添加 StateFlow 订阅") }
+                    Button(onClick = { cancelCollectors() }) { Text("取消全部订阅") }
+                    TextButton(onClick = { logText = "" }) { Text("清空日志") }
+                    SelectionContainer { Text(logText) }
+                }
             }
         }
         log("ready: SharedFlow(replay=0/1) & StateFlow(initial=0)")
@@ -186,21 +185,4 @@ class FlowCompareActivity : ComponentActivity() {
         logText = if (merged.length > 8000) merged.takeLast(8000) else merged
     }
 
-    /** 页面使用应用主题和可滚动内容；返回按钮结束当前 Activity，系统返回沿用默认行为。 */
-    @Composable
-    private fun Page(title: String, content: @Composable ColumnScope.() -> Unit) {
-        com.alex.studydemo.ui.StudyTheme {
-            Scaffold(topBar = {
-                Surface(tonalElevation = 3.dp) {
-                    Row(Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp)) {
-                        TextButton(onClick = { finish() }) { Text("返回") }
-                        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(12.dp))
-                    }
-                }
-            }) { padding ->
-                Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
-            }
-        }
-    }
 }

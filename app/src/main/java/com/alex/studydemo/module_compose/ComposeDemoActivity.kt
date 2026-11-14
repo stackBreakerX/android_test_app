@@ -1,19 +1,17 @@
 package com.alex.studydemo.module_compose
 
+import com.alex.studydemo.ui.StudyScaffold
+import com.alex.studydemo.ui.StudyTheme
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.layout.Arrangement
@@ -21,9 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -43,16 +38,9 @@ class ComposeDemoActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            com.alex.studydemo.ui.StudyTheme {
-                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    Column(Modifier.safeDrawingPadding().padding(horizontal = 20.dp)) {
-                        TextButton(onClick = ::finish) { Text("‹ 返回") }
-                        Text("Compose 示例", fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                        Text(
-                            "组件与交互演示",
-                            Modifier.padding(top = 8.dp, bottom = 24.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+            StudyTheme {
+                StudyScaffold("Compose 示例", onBack = ::finish, subtitle = "组件与交互演示") { insets ->
+                    Column(Modifier.fillMaxSize().padding(insets).padding(horizontal = 20.dp)) {
                         LazyVerticalGrid(columns = GridCells.Adaptive(160.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             item {
                                 ComposeEntry("iOS 模态弹窗（背景缩放）", "底部卡片、跟手拖动、列表滚动衔接", "compose_entry_modal") {
@@ -82,6 +70,7 @@ class ComposeDemoActivity : ComponentActivity() {
                                 }
                             }
                         }
+
                     }
                 }
             }

@@ -1,5 +1,7 @@
 package com.alex.studydemo.network.monitor
 
+import com.alex.studydemo.ui.StudyPage
+import com.alex.studydemo.ui.StudyTheme
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -8,13 +10,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import android.util.Log
 
 /** 在页面可见期间监听默认网络；带宽为系统估计值，不执行测速。 */
@@ -39,14 +36,17 @@ class NetworkMonitorActivity : ComponentActivity(), NetChangeObserver {
     /** 初始化系统服务，状态等待回调填充。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { Page("网络监控") {
-            Text(status, style = MaterialTheme.typography.headlineMedium)
-            Text(details)
-            Text("Wi-Fi 弱网阈值 3000 kbps；蜂窝弱网阈值 1500 kbps。未验证互联网连接时按弱网显示。")
-        } }
+        setContent {
+            StudyTheme {
+                StudyPage("网络监控", onBack = { finish() }) {
+                    Text(status, style = MaterialTheme.typography.headlineMedium)
+                    Text(details)
+                    Text("Wi-Fi 弱网阈值 3000 kbps；蜂窝弱网阈值 1500 kbps。未验证互联网连接时按弱网显示。")
+                }
+            }
+        }
 
         connectivityManager = getSystemService(ConnectivityManager::class.java)
-
 
     }
 
@@ -188,21 +188,4 @@ class NetworkMonitorActivity : ComponentActivity(), NetChangeObserver {
         private const val TAG = "NetworkMonitorActivity"
     }
 
-    /** 页面使用应用主题和可滚动内容；返回按钮结束当前 Activity，系统返回沿用默认行为。 */
-    @Composable
-    private fun Page(title: String, content: @Composable ColumnScope.() -> Unit) {
-        com.alex.studydemo.ui.StudyTheme {
-            Scaffold(topBar = {
-                Surface(tonalElevation = 3.dp) {
-                    Row(Modifier.fillMaxWidth().statusBarsPadding().padding(12.dp)) {
-                        TextButton(onClick = { finish() }) { Text("返回") }
-                        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(12.dp))
-                    }
-                }
-            }) { padding ->
-                Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
-            }
-        }
-    }
 }

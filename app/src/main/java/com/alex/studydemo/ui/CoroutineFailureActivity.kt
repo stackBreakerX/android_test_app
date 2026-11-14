@@ -4,11 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.*
@@ -24,17 +21,15 @@ class CoroutineFailureActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             StudyTheme {
-                Surface(Modifier.fillMaxSize()) {
-                    Column(Modifier.safeDrawingPadding().padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        TextButton(onClick = ::finish) { Text("‹ 返回数据") }
-                        Text("异常与取消", style = MaterialTheme.typography.headlineLarge)
+                StudyPage("异常与取消", onBack = ::finish,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         Text("任务 A 在 300ms 后失败，任务 B 在 600ms 后完成。比较两种作用域下 B 的结果。")
                         Button(onClick = { runExperiment(false) }, enabled = !running) { Text("运行 coroutineScope") }
                         Button(onClick = { runExperiment(true) }, enabled = !running) { Text("运行 supervisorScope") }
                         OutlinedButton(onClick = { task?.cancel() }, enabled = running) { Text("取消任务") }
                         events.forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
                     }
-                }
             }
         }
     }

@@ -1,12 +1,12 @@
 package com.alex.studydemo.module_media
 
+import com.alex.studydemo.ui.StudyPage
+import com.alex.studydemo.ui.StudyTheme
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -43,23 +43,13 @@ internal class MediaOutput {
     }
 }
 
-/** 独立页面使用自包含主题和安全区；返回按钮与系统返回均结束当前 Activity。 */
+/** 媒体页面沿用应用主题和公共导航安全区；返回按钮与系统返回均结束当前 Activity。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MediaPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    com.alex.studydemo.ui.StudyTheme {
-        Scaffold(topBar = {
-            TopAppBar(title = { Text(title) }, navigationIcon = {
-                TextButton(onClick = onBack) { Text("返回") }
-            })
-        }) { insets ->
-            Column(
-                Modifier.fillMaxSize().padding(insets).imePadding()
-                    .verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                content = content
-            )
-        }
+    StudyTheme {
+        StudyPage(title, onBack, contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
     }
 }
 

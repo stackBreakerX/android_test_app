@@ -41,6 +41,30 @@ class LearningWorkspaceTest {
         compose.onNodeWithText("消息实验室").performScrollTo().assertIsDisplayed()
     }
 
+    /** 根页不显示返回；子页点击统一箭头后，应恢复原搜索内容和底部 Tab，而不是新建工作台。 */
+    @Test fun sharedNavigationReturnsToExistingWorkspace() {
+        compose.onNodeWithTag("study_top_bar").assertIsDisplayed()
+        compose.onNodeWithTag("study_bottom_bar").assertIsDisplayed()
+        compose.onNodeWithTag("study_back").assertDoesNotExist()
+        compose.onNode(hasSetTextAction()).performTextInput("状态")
+        compose.onNodeWithText("状态与重组").performScrollTo().performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("study_back").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        compose.onNodeWithTag("study_top_bar").assertIsDisplayed()
+        compose.onNodeWithContentDescription("返回").assertIsDisplayed()
+        // 首选共享语义；触摸回退位置由本次 ARTEMIS 在 1080×2400 设备验证为 (74, 211)。
+        try { compose.onNodeWithTag("study_back").performClick() }
+        catch (_: AssertionError) {
+            compose.onRoot().performTouchInput { click(Offset(width * (74f / 1080f), height * (211f / 2400f))) }
+        }
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("study_bottom_bar").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        compose.onNodeWithTag("study_back").assertDoesNotExist()
+        compose.onNode(hasSetTextAction()).assertTextContains("状态")
+    }
+
     /** 点击选项文字也必须切换外观，避免只有单选圆点响应而读屏标签无法操作。 */
     @Test fun themeLabelsChangeAppearancePreference() {
         compose.onNodeWithText("设置").performClick()

@@ -23,3 +23,14 @@
 ```
 
 设备交互验证使用 ARTEMIS；当前设备的操作记录与结果单独保存在执行 trace 中，不把自动化代理的主观判断当作每个原生后端均已通过。
+
+## 公共导航组件
+
+导航入口集中在 `ui/StudyNavigation.kt`：
+
+- `StudyTopBar`：居中标题、单行副标题、支持 RTL 的返回图标和右侧操作槽。根页面传 `onBack = null`；返回与关闭行为由宿主提供。
+- `StudyScaffold`：固定顶部栏与底部槽，向内容传入安全区内边距，沿用调用方主题。黑底预览可分别指定 `barColor` 与 `barContentColor`。
+- `StudyPage`：常规实验页面的 Column，集中消费安全区和键盘边距。包含 RecyclerView 或 LazyColumn 的页面传 `scrollable = false`，保留有界高度。
+- `StudyBottomBar`：统一底部 Tab，接收条目、选中索引和回调，不持有业务导航状态。
+
+业务页面不直接创建 Material 顶部栏或底部栏。媒体、图片和交互模块的薄包装只保留各自内容布局策略。模态默认标题栏使用零 `windowInsets`，因为浮层安全区由模态宿主处理；手柄和关闭回调继续由模态组件管理。

@@ -68,32 +68,21 @@ fun LearningApp() {
         query = ""; topic = "全部"; onlySaved = false; selected = 0
     }
     StudyTheme(dark) {
-        Scaffold(
+        StudyScaffold(title = "学习工作台", subtitle = "STUDY / ANDROID",
+            actions = { TextButton(onClick = { settings = true }) { Text("设置") } },
             bottomBar = {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                    workspaces.forEachIndexed { index, tab ->
-                        NavigationBarItem(
-                            selected = selected == index,
-                            onClick = { selected = index; topic = "全部"; query = "" },
-                            icon = { Text(tab.symbol, fontSize = 24.sp) }, label = { Text(tab.title) },
-                        )
-                    }
+                StudyBottomBar(workspaces.map { StudyTab(it.title, it.symbol) }, selected) { index ->
+                    selected = index; topic = "全部"; query = ""
                 }
             },
         ) { insets ->
             // 每个工作台拥有独立滚动位置，切换 Tab 后回到上次浏览的区域。
             tabStates.SaveableStateProvider(selected) {
                 Column(
-                    Modifier.fillMaxSize().padding(insets).verticalScroll(rememberScrollState()).padding(horizontal = 22.dp),
+                    Modifier.fillMaxSize().padding(insets).consumeWindowInsets(insets).verticalScroll(rememberScrollState()).padding(horizontal = 22.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    Row(Modifier.fillMaxWidth().padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("STUDY / ANDROID", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, letterSpacing = 2.sp)
-                            Text("学习工作台", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        }
-                        TextButton(onClick = { settings = true }) { Text("设置") }
-                    }
+
                     Surface(shape = RoundedCornerShape(28.dp), color = Color(0xFF142D35)) {
                         Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF142D35), Color(0xFF264C58)))).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text("0${selected + 1}  /  ${workspace.title}实验室", color = workspace.color, style = MaterialTheme.typography.labelLarge)

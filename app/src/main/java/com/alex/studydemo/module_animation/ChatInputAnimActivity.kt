@@ -1,139 +1,93 @@
 package com.alex.studydemo.module_animation
 
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
-import android.view.animation.PathInterpolator
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.animation.*
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.recyclerview.widget.RecyclerView
-import com.alex.studydemo.base.BaseActivity
-import com.alex.studydemo.databinding.ActivityChatInputAnimBinding
+import com.alex.studydemo.module_view.ExperimentPage
 
-class ChatInputAnimActivity : BaseActivity<ActivityChatInputAnimBinding>() {
-    private var showingInput = true
-    private val interpolator = PathInterpolator(0.2f, 0f, 0.2f, 1f)
-
-    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityChatInputAnimBinding =
-        ActivityChatInputAnimBinding.inflate(inflater)
-
-    override fun onViewCreated(savedInstanceState: Bundle?) {
-        title = "Chat 输入框动画"
-        binding.recycler.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
-        binding.recycler.adapter = SimpleChatAdapter()
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(com.alex.studydemo.R.menu.menu_chat_input_anim, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            com.alex.studydemo.R.id.action_show_actions -> {
-                showActionsHideInput()
-                true
-            }
-            com.alex.studydemo.R.id.action_show_input -> {
-                showInputHideActions()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    private fun showActionsHideInput() {
-        val input = binding.inputBar
-        val actions = binding.actionBar
-        input.post {
-            /*
-             translationY 说明：
-             - 仅影响绘制阶段的垂直位移（y = top + translationY），不触发重新测量/布局，列表不抖动。
-             - 优于修改 margin/padding 或 y：保持原始布局坐标稳定，动画友好。
-             
-             为什么使用 distance = input.height + root.paddingBottom：
-             - 下移至少 input.height，才能让输入栏完全越过父容器底边界（顶部刚好到达底边以下）。
-             - 再加上父容器的底部内边距 paddingBottom（视图留白/安全区），避免在留白区域残留可见/可点击部分。
-             - 合计位移精确覆盖可见垂直空间，确保“彻底隐藏”，同时不改变布局尺寸。
-             
-             出现/消失的基准值：
-             - 出现：translationY = 0。因为 y = top + 0，视图回到布局计算出的正常位置（底部对齐），同时 alpha 0→1 淡入。
-             - 消失：translationY = distance（height + paddingBottom）。确保跨过父容器底边和其底部留白，完全滑出可见区域，alpha 1→0 淡出。
-             
-             操作栏与输入框的协作：
-             - 显示操作栏：actions 先设置为可见，并放在 distance 位置且透明（translationY=distance, alpha=0），再动画到 0 和 alpha=1；
-               同时输入框动画到 distance/alpha=0，形成对向联动。
-             - 隐藏操作栏：反向处理，actions 动画到 distance/alpha=0 并在结束回调设为 GONE，避免拦截触摸；输入框动画到 0/alpha=1。
-             
-             工程效果：
-             - 布局稳定、无回流；位移量与父容器真实可见空间耦合，适配不同设备安全区。
-             
-             如何让两者“同时做动画”：
-             - 放在同一个 choreographer 帧启动：在 post{} 内同时调用两个 ViewPropertyAnimator.start()，它们共用同一插值器与时长；
-             - 为“出现”的一方先设置初始状态（translationY=distance, alpha=0），再与另一方一起 start()；
-             - 不必使用 AnimatorSet：两个独立的 ViewPropertyAnimator 在同一帧开始即可同步；如需更复杂编排可改用 AnimatorSet.playTogether()。
-             */
-            val distance = input.height + binding.root.paddingBottom
-            // 输入框向下淡出
-            input.animate()
-                .translationY(distance.toFloat())
-                .alpha(0f)
-                .setDuration(220L)
-                .setInterpolator(interpolator)
-                .start()
-            // 操作栏准备出现：先放到下方并透明
-            actions.visibility = android.view.View.VISIBLE
-            actions.translationY = distance.toFloat()
-            actions.alpha = 0f
-            // 操作栏向上淡入
-            actions.animate()
-                .translationY(0f)
-                .alpha(1f)
-                .setDuration(220L)
-                .setInterpolator(interpolator)
-                .start()
-            showingInput = false
-        }
-    }
-
-    private fun showInputHideActions() {
-        val input = binding.inputBar
-        val actions = binding.actionBar
-        input.post {
-            // 当操作栏尚未测量（height=0）时，回退到“输入栏高度 + 父容器底部内边距”的总位移，保证淡出彻底
-            val distance = actions.height.takeIf { it > 0 } ?: (input.height + binding.root.paddingBottom)
-            // 输入框向上淡入
-            input.animate()
-                .translationY(0f)
-                .alpha(1f)
-                .setDuration(220L)
-                .setInterpolator(interpolator)
-                .start()
-            // 操作栏向下淡出
-            actions.animate()
-                .translationY(distance.toFloat())
-                .alpha(0f)
-                .setDuration(220L)
-                .setInterpolator(interpolator)
-                .withEndAction {
-                    actions.visibility = android.view.View.GONE
+/** 输入栏与操作栏共享固定底部区域，通过绘制位移切换，避免动画导致列表重新布局。 */
+class ChatInputAnimActivity : ComponentActivity() {
+    /** 220 毫秒曲线与原生 PathInterpolator 保持一致，快速切换由 Compose 从当前帧续接。 */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            var showingInput by rememberSaveable { mutableStateOf(true) }
+            var draft by rememberSaveable { mutableStateOf("") }
+            var feedback by remember { mutableStateOf("") }
+            val messages = remember { mutableStateListOf<String>().apply {
+                addAll(List(20) { if (it % 2 == 0) "这是一条消息 $it" else "另一条消息 $it" })
+            } }
+            val animation = tween<Float>(220, easing = CubicBezierEasing(.2f, 0f, .2f, 1f))
+            val slide = tween<androidx.compose.ui.unit.IntOffset>(220, easing = CubicBezierEasing(.2f, 0f, .2f, 1f))
+            ExperimentPage("Chat 输入框动画", { finish() }) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    TextButton(onClick = { showingInput = false }) { Text("显示操作栏") }
+                    TextButton(onClick = { showingInput = true }) { Text("显示输入框") }
                 }
-                .start()
-            showingInput = true
+                LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+                    items(messages.toList()) { Text(it, Modifier.fillMaxWidth().padding(16.dp)) }
+                }
+                if (feedback.isNotEmpty()) Text(feedback)
+                // 两栏叠放于固定高度的容器，退场后移除语义及触摸目标，隐藏栏不会拦截输入。
+                Box(Modifier.fillMaxWidth().height(88.dp)) {
+                    androidx.compose.animation.AnimatedVisibility(showingInput, modifier = Modifier.align(Alignment.BottomCenter),
+                        enter = slideInVertically(slide) { it } + fadeIn(animation),
+                        exit = slideOutVertically(slide) { it } + fadeOut(animation)) {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(value = draft, onValueChange = { draft = it }, singleLine = true,
+                                placeholder = { Text("输入内容") }, modifier = Modifier.weight(1f))
+                            Button(onClick = {
+                                // 空草稿不生成消息，非空内容发送后清空，便于反复切换验证草稿状态。
+                                if (draft.isNotBlank()) { messages.add(draft); draft = "" }
+                            }) { Text("发送") }
+                        }
+                    }
+                    androidx.compose.animation.AnimatedVisibility(!showingInput, modifier = Modifier.align(Alignment.BottomCenter),
+                        enter = slideInVertically(slide) { it } + fadeIn(animation),
+                        exit = slideOutVertically(slide) { it } + fadeOut(animation)) {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            Button(onClick = {
+                                if (messages.isNotEmpty()) messages.removeAt(messages.lastIndex)
+                                feedback = "已删除末条消息"
+                            }) { Text("删除") }
+                            Button(onClick = { feedback = messages.lastOrNull()?.let { "转发预览：$it" } ?: "暂无可转发消息" }) { Text("转发") }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+/** 保留原生适配器公开类型供既有调用方使用；当前页面列表由 Compose 绘制。 */
 class SimpleChatAdapter : RecyclerView.Adapter<SimpleChatAdapter.VH>() {
     private val data = List(20) { i -> if (i % 2 == 0) "这是一条消息 $i" else "另一条消息 $i" }
+    /** 保留原生适配器的公开 ViewHolder 类型。 */
     class VH(val tv: android.widget.TextView) : RecyclerView.ViewHolder(tv)
+    /** 创建可复用的原生消息条目，不在此处启动动画。 */
     override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): VH {
         val tv = android.view.LayoutInflater.from(parent.context)
             .inflate(android.R.layout.simple_list_item_1, parent, false) as android.widget.TextView
         tv.textSize = 16f
         return VH(tv)
     }
+    /** 每次绑定覆盖消息文字，避免复用时残留旧内容。 */
     override fun onBindViewHolder(holder: VH, position: Int) {
         holder.tv.text = data[position]
     }
+    /** 数量与当前消息集合一致，插入由页面发送通知。 */
     override fun getItemCount(): Int = data.size
 }

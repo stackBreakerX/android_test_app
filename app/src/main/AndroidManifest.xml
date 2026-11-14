@@ -15,6 +15,9 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <!-- 相机仅为可选实验能力，无相机设备仍可使用其他工作台。 -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <application
         android:name=".app.MyApplication"
         android:allowBackup="false"
@@ -24,6 +27,10 @@
         android:roundIcon="@mipmap/icon_app"
         android:supportsRtl="true"
         android:theme="@style/Theme.StudyDemo">
+        <activity android:name=".hilt.HiltMainActivity" android:exported="false" />
+        <activity android:name=".module_coroutine.CoroutineDemoActivity" android:exported="false" />
+        <activity android:name=".ui.CoroutineFailureActivity" android:exported="false" />
+        <activity android:name=".module_media.OfflineSpeechToTextActivity" android:exported="false" />
         <activity
             android:name=".module_compose.state.ComposeStateActivity"
             android:exported="false" />

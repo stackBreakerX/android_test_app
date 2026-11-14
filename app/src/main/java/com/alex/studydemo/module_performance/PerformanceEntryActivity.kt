@@ -2,54 +2,34 @@ package com.alex.studydemo.module_performance
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
-import android.view.ViewGroup
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.alex.studydemo.base.BaseActivity
-import com.alex.studydemo.databinding.ActivityPerformanceEntryBinding
-import com.alex.studydemo.databinding.ItemMainEntryBinding
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.alex.studydemo.ui.StudyTheme
 
-class PerformanceEntryActivity : BaseActivity<ActivityPerformanceEntryBinding>() {
-
-    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityPerformanceEntryBinding =
-        ActivityPerformanceEntryBinding.inflate(inflater)
-
-    override fun onViewCreated(savedInstanceState: Bundle?) {
-        supportActionBar?.title = "性能入口"
-
-        val recycler = binding.recyclerPerformanceEntry
-        recycler.layoutManager = LinearLayoutManager(this)
-        recycler.adapter = EntryAdapter(buildEntries())
-    }
-
-    private data class EntryItem(
-        val title: String,
-        val onClick: (View) -> Unit
-    )
-
-    private fun buildEntries(): List<EntryItem> = listOf(
-        EntryItem("JankStats 卡顿检测") { startActivity(Intent(this, JankStatsActivity::class.java)) },
-    )
-
-    private inner class EntryAdapter(
-        private val items: List<EntryItem>
-    ) : RecyclerView.Adapter<EntryAdapter.VH>() {
-
-        inner class VH(val binding: ItemMainEntryBinding) : RecyclerView.ViewHolder(binding.root)
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-            val binding = ItemMainEntryBinding.inflate(layoutInflater, parent, false)
-            return VH(binding)
+/** 保留旧性能入口的 Activity 身份，页面内容和导航均由 Compose 提供。 */
+class PerformanceEntryActivity : ComponentActivity() {
+    /** 独立进入时仍可返回调用方，不另建一份应用工作台。 */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            StudyTheme {
+                Surface(Modifier.fillMaxSize()) {
+                    Column(Modifier.safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        TextButton(onClick = ::finish) { Text("‹ 返回") }
+                        Text("性能实验室", style = MaterialTheme.typography.headlineLarge)
+                        Card(onClick = { startActivity(Intent(this@PerformanceEntryActivity, JankStatsActivity::class.java)) }) {
+                            Column(Modifier.padding(24.dp)) {
+                                Text("帧率观测", style = MaterialTheme.typography.titleLarge)
+                                Text("观察 JankStats 帧耗时并主动模拟卡顿。")
+                            }
+                        }
+                    }
+                }
+            }
         }
-
-        override fun onBindViewHolder(holder: VH, position: Int) {
-            val item = items[position]
-            holder.binding.btnEntry.text = item.title
-            holder.binding.btnEntry.setOnClickListener { v -> item.onClick(v) }
-        }
-
-        override fun getItemCount(): Int = items.size
     }
 }
-

@@ -1,416 +1,154 @@
 package com.alex.studydemo.module_image
 
 import android.Manifest
-import android.app.Activity
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
-import android.util.Log
-import android.view.View
-import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import com.alex.studydemo.base.BaseActivity
-import androidx.core.app.ActivityCompat
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
-import com.alex.studydemo.databinding.ActivityImagePickerBinding
 import com.alibaba.android.arouter.facade.annotation.Route
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 
+/** 图库和相机共用异步解码流程，原图与 200 像素缩略图均由 Compose 展示。 */
 @Route(path = ImagePickerActivity.PATH)
-class ImagePickerActivity : BaseActivity<ActivityImagePickerBinding>() {
+class ImagePickerActivity : ComponentActivity() {
+    /** 保留跨模块 ARouter 入口。 */
+    companion object { const val PATH = "/view/ImagePicker" }
 
-    private val mViewBinding: ActivityImagePickerBinding get() = binding
+    // 仅主线程提交显示状态；工作期间禁用操作，避免旧结果覆盖新选择。
+    private var original by mutableStateOf<Bitmap?>(null)
+    private var thumbnail by mutableStateOf<Bitmap?>(null)
+    private var busy by mutableStateOf(false)
+    private var message by mutableStateOf("选择图库图片或拍照，生成并保存缩略图。")
     private var currentPhotoPath: String? = null
+    private var selectedUri: Uri? = null
+    // 恢复状态和外部结果可能相邻到达；只允许最后一次请求更新预览和 busy。
+    private var loadJob: Job? = null
+    private var loadVersion = 0
 
-    companion object {
-        const val PATH = "/view/ImagePicker"
-        private const val TAG = "ImagePickerActivity"
-        private const val REQUEST_CAMERA_PERMISSION = 1001
-        private const val REQUEST_STORAGE_PERMISSION = 1002
-    }
-
-    // 相机拍照结果处理
-    private val cameraResultLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            currentPhotoPath?.let { path ->
-                loadImageAsync(path, isFromCamera = true)
-            }
+    // 文档选择器按 URI 临时授权，不需要申请整个图库的读取权限。
+    private val gallery = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try { contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            catch (_: SecurityException) { /* 部分提供器只支持本次授权，当前会话仍可读取。 */ }
+            loadImage(uri)
         }
     }
-
-    // 图库选择结果处理
-    private val galleryResultLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            result.data?.data?.let { uri ->
-                loadImageFromUriAsync(uri)
-            }
+    private val camera = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val path = currentPhotoPath
+        if (success && path != null) loadImage(Uri.fromFile(File(path)))
+        else {
+            path?.let { File(it).delete() }
+            currentPhotoPath = null
+            message = "已取消拍照"
         }
     }
-
-    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityImagePickerBinding =
-        ActivityImagePickerBinding.inflate(inflater)
-
-    override fun onViewCreated(savedInstanceState: Bundle?) {
-        initViews()
+    private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) takePhoto() else message = "需要相机权限才能拍照，可在系统设置中授权或选择图库图片。"
     }
 
-    private fun initViews() {
-        mViewBinding.btnSelectFromGallery.setOnClickListener {
-            if (checkStoragePermission()) {
-                openGallery()
-            }
-        }
-
-        mViewBinding.btnTakePhoto.setOnClickListener {
-            if (checkCameraPermission()) {
-                takePhoto()
-            }
-        }
-
-        mViewBinding.btnClearImage.setOnClickListener {
-            clearImage()
-        }
-        
-        // 初始化加载指示器
-        showLoading(false)
-    }
-
-    /**
-     * 检查存储权限
-     */
-    private fun checkStoragePermission(): Boolean {
-        return if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
-                REQUEST_STORAGE_PERMISSION
-            )
-            false
-        } else {
-            true
-        }
-    }
-
-    /**
-     * 检查相机权限
-     */
-    private fun checkCameraPermission(): Boolean {
-        return if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.CAMERA
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.CAMERA),
-                REQUEST_CAMERA_PERMISSION
-            )
-            false
-        } else {
-            true
-        }
-    }
-
-    /**
-     * 打开图库选择图片
-     */
-    private fun openGallery() {
-        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-        galleryResultLauncher.launch(intent)
-    }
-
-    /**
-     * 拍照
-     */
-    private fun takePhoto() {
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        if (intent.resolveActivity(packageManager) != null) {
-            val photoFile = createImageFile()
-            photoFile?.let { file ->
-                currentPhotoPath = file.absolutePath
-                val photoURI = FileProvider.getUriForFile(
-                    this,
-                    "${packageName}.fileprovider",
-                    file
-                )
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
-                cameraResultLauncher.launch(intent)
-            }
-        }
-    }
-
-    /**
-     * 创建图片文件
-     */
-    private fun createImageFile(): File? {
-        return try {
-            val imageFileName = "JPEG_${System.currentTimeMillis()}_"
-            val storageDir = getExternalFilesDir("Pictures")
-            File.createTempFile(imageFileName, ".jpg", storageDir)
-        } catch (ex: IOException) {
-            Log.e(TAG, "Error occurred while creating the file", ex)
-            null
-        }
-    }
-
-    /**
-     * 异步加载图片（从文件路径）
-     */
-    private fun loadImageAsync(imagePath: String, isFromCamera: Boolean = false) {
-        showLoading(true)
-        lifecycleScope.launch {
-            try {
-                val bitmap = withContext(Dispatchers.IO) {
-                    loadBitmapFromFile(imagePath)
-                }
-                bitmap?.let {
-                    displayImage(it)
-                    generateThumbnailAsync(it)
-                } ?: run {
-                    showError("图片加载失败")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "加载图片失败", e)
-                showError("图片加载失败: ${e.message}")
-            } finally {
-                showLoading(false)
-            }
-        }
-    }
-
-    /**
-     * 异步加载图片（从URI）
-     */
-    private fun loadImageFromUriAsync(uri: Uri) {
-        showLoading(true)
-        lifecycleScope.launch {
-            try {
-                val bitmap = withContext(Dispatchers.IO) {
-                    loadBitmapFromUri(uri)
-                }
-                bitmap?.let {
-                    displayImage(it)
-                    generateThumbnailAsync(it)
-                } ?: run {
-                    showError("图片加载失败")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "加载图片失败", e)
-                showError("图片加载失败: ${e.message}")
-            } finally {
-                showLoading(false)
-            }
-        }
-    }
-
-    /**
-     * 从文件加载Bitmap（IO线程）
-     */
-    private suspend fun loadBitmapFromFile(imagePath: String): Bitmap? {
-        return withContext(Dispatchers.IO) {
-            try {
-                // 先获取图片尺寸，避免内存溢出
-                val options = BitmapFactory.Options()
-                options.inJustDecodeBounds = true
-                BitmapFactory.decodeFile(imagePath, options)
-                
-                // 计算合适的缩放比例
-                val scale = calculateInSampleSize(options, 1024, 1024)
-                options.inJustDecodeBounds = false
-                options.inSampleSize = scale
-                options.inPreferredConfig = Bitmap.Config.RGB_565 // 减少内存使用
-                
-                BitmapFactory.decodeFile(imagePath, options)
-            } catch (e: Exception) {
-                Log.e(TAG, "从文件加载图片失败", e)
-                null
-            }
-        }
-    }
-
-    /**
-     * 从URI加载Bitmap（IO线程）
-     */
-    private suspend fun loadBitmapFromUri(uri: Uri): Bitmap? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val inputStream = contentResolver.openInputStream(uri)
-                inputStream?.use { stream ->
-                    // 先获取图片尺寸
-                    val options = BitmapFactory.Options()
-                    options.inJustDecodeBounds = true
-                    BitmapFactory.decodeStream(stream, null, options)
-                    
-                    // 重新打开流
-                    contentResolver.openInputStream(uri)?.use { newStream ->
-                        // 计算缩放比例
-                        val scale = calculateInSampleSize(options, 1024, 1024)
-                        options.inJustDecodeBounds = false
-                        options.inSampleSize = scale
-                        options.inPreferredConfig = Bitmap.Config.RGB_565
-                        
-                        BitmapFactory.decodeStream(newStream, null, options)
+    /** 恢复外部相机等待期间的文件路径；位图重新解码，不放入 Bundle。 */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        currentPhotoPath = savedInstanceState?.getString("photo")
+        savedInstanceState?.getString("selected")?.let { loadImage(Uri.parse(it)) }
+        setContent {
+            ImageDemoTheme {
+                ImageDemoScaffold("图片选择与缩略图", { finish() }) { padding ->
+                    Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("从原图到缩略图", style = MaterialTheme.typography.headlineSmall)
+                        Button(onClick = { gallery.launch(arrayOf("image/*")) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("从图库选择") }
+                        OutlinedButton(onClick = { requestCamera() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("拍照") }
+                        TextButton(onClick = { clearImage() }, enabled = !busy) { Text("清除图片") }
+                        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                        Text(message)
+                        ImagePreview(original, "原图预览（采样加载）")
+                        ImagePreview(thumbnail, "200 × 200 缩略图", 160)
                     }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "从URI加载图片失败", e)
-                null
             }
         }
     }
 
-    /**
-     * 计算合适的缩放比例
-     */
-    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
-        val height = options.outHeight
-        val width = options.outWidth
-        var inSampleSize = 1
-
-        if (height > reqHeight || width > reqWidth) {
-            val halfHeight = height / 2
-            val halfWidth = width / 2
-
-            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
-                inSampleSize *= 2
-            }
-        }
-        return inSampleSize
+    /** 保留 URI 与相机输出路径，使旋转后仍可接收拍照结果。 */
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("photo", currentPhotoPath)
+        outState.putString("selected", selectedUri?.toString())
+        super.onSaveInstanceState(outState)
     }
 
-    /**
-     * 显示图片
-     */
-    private fun displayImage(bitmap: Bitmap) {
-        mViewBinding.ivSelectedImage.setImageBitmap(bitmap)
-        mViewBinding.tvImageInfo.text = "图片尺寸: ${bitmap.width} x ${bitmap.height}"
+    /** 仅拍照操作申请 CAMERA，拒绝不阻断文档选择器。 */
+    private fun requestCamera() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) takePhoto()
+        else cameraPermission.launch(Manifest.permission.CAMERA)
     }
 
-    /**
-     * 异步生成缩略图
-     */
-    private fun generateThumbnailAsync(originalBitmap: Bitmap) {
-        lifecycleScope.launch {
-            try {
-                val thumbnail = withContext(Dispatchers.IO) {
-                    val thumbnailSize = 200 // 缩略图尺寸
-                    Bitmap.createScaledBitmap(
-                        originalBitmap,
-                        thumbnailSize,
-                        thumbnailSize,
-                        true
-                    )
-                }
-                
-                // 在主线程更新UI
-                mViewBinding.ivThumbnail.setImageBitmap(thumbnail)
-                mViewBinding.tvThumbnailInfo.text = "缩略图尺寸: ${thumbnail.width} x ${thumbnail.height}"
-                
-                // 异步保存缩略图到文件
-                saveThumbnailToFileAsync(thumbnail)
-            } catch (e: Exception) {
-                Log.e(TAG, "生成缩略图失败", e)
-                showError("生成缩略图失败: ${e.message}")
-            }
+    /** 输出到既有 FileProvider 允许的 Pictures 目录；启动失败时显示原因并删除空文件。 */
+    private fun takePhoto() {
+        try {
+            val directory = requireNotNull(getExternalFilesDir("Pictures")) { "图片目录不可用" }.apply { mkdirs() }
+            val file = File.createTempFile("JPEG_", ".jpg", directory)
+            currentPhotoPath = file.absolutePath
+            camera.launch(FileProvider.getUriForFile(this, "$packageName.fileprovider", file))
+        } catch (error: Exception) {
+            currentPhotoPath?.let { File(it).delete() }
+            currentPhotoPath = null
+            message = "无法启动相机：${error.localizedMessage}"
         }
     }
 
-    /**
-     * 异步保存缩略图到文件
-     */
-    private fun saveThumbnailToFileAsync(thumbnail: Bitmap) {
-        lifecycleScope.launch {
+    /** 解码、生成和保存串行完成后一次提交；取消协程不显示错误，保存失败仍保留预览。 */
+    private fun loadImage(uri: Uri) {
+        val version = ++loadVersion
+        loadJob?.cancel()
+        selectedUri = uri
+        busy = true
+        loadJob = lifecycleScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
-                    val thumbnailFile = File(getExternalFilesDir("Thumbnails"), "thumbnail_${System.currentTimeMillis()}.jpg")
-                    thumbnailFile.parentFile?.mkdirs()
-                    
-                    val outputStream = FileOutputStream(thumbnailFile)
-                    thumbnail.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
-                    outputStream.flush()
-                    outputStream.close()
-                    
-                    thumbnailFile.absolutePath
+                    val bitmap = requireNotNull(decodeImageSampled(contentResolver, uri, 1024)) { "无法解码图片" }
+                    val small = Bitmap.createScaledBitmap(bitmap, 200, 200, true)
+                    val saved = runCatching {
+                        val directory = requireNotNull(getExternalFilesDir("Thumbnails")) { "缩略图目录不可用" }.apply { mkdirs() }
+                        val file = File(directory, "thumbnail_${System.currentTimeMillis()}.jpg")
+                        file.outputStream().use { check(small.compress(Bitmap.CompressFormat.JPEG, 90, it)) { "JPEG 编码失败" } }
+                        file.absolutePath
+                    }
+                    Triple(bitmap, small, saved)
                 }
-                
-                Log.d(TAG, "缩略图已保存到: $result")
-                Toast.makeText(this@ImagePickerActivity, "缩略图已保存", Toast.LENGTH_SHORT).show()
-            } catch (e: IOException) {
-                Log.e(TAG, "保存缩略图失败", e)
-                Toast.makeText(this@ImagePickerActivity, "保存缩略图失败", Toast.LENGTH_SHORT).show()
-            }
+                original = result.first
+                thumbnail = result.second
+                message = result.third.fold({ "缩略图已保存：$it" }, { "图片已加载，缩略图保存失败：${it.localizedMessage}" })
+            } catch (cancel: CancellationException) { throw cancel }
+            catch (error: Exception) { message = "图片加载失败：${error.localizedMessage}" }
+            catch (_: OutOfMemoryError) { message = "图片过大，内存不足，请选择较小的图片。" }
+            finally { if (version == loadVersion) busy = false }
         }
     }
 
-    /**
-     * 显示/隐藏加载指示器
-     */
-    private fun showLoading(show: Boolean) {
-        mViewBinding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
-        mViewBinding.btnSelectFromGallery.isEnabled = !show
-        mViewBinding.btnTakePhoto.isEnabled = !show
-        mViewBinding.btnClearImage.isEnabled = !show
-    }
-
-    /**
-     * 显示错误信息
-     */
-    private fun showError(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-        Log.e(TAG, message)
-    }
-
-    /**
-     * 清除图片
-     */
+    /** 清除显示引用即可释放持有关系；已保存的缩略图文件继续保留。 */
     private fun clearImage() {
-        mViewBinding.ivSelectedImage.setImageBitmap(null)
-        mViewBinding.ivThumbnail.setImageBitmap(null)
-        mViewBinding.tvImageInfo.text = ""
-        mViewBinding.tvThumbnailInfo.text = ""
+        original = null
+        thumbnail = null
+        selectedUri = null
         currentPhotoPath = null
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            REQUEST_CAMERA_PERMISSION -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    takePhoto()
-                } else {
-                    Toast.makeText(this, "需要相机权限才能拍照", Toast.LENGTH_SHORT).show()
-                }
-            }
-            REQUEST_STORAGE_PERMISSION -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    openGallery()
-                } else {
-                    Toast.makeText(this, "需要存储权限才能访问图库", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+        message = "已清除图片"
     }
 }

@@ -11,33 +11,32 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import android.widget.Toast
-import com.alex.studydemo.base.BaseActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.*
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.lifecycle.lifecycleScope
-import com.alex.studydemo.databinding.ActivityWebpLibwebpBinding
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-class WebpLibwebpActivity : BaseActivity<ActivityWebpLibwebpBinding>() {
+/** 保留媒体扫描、编解码和输出协议，由 Compose 状态展示进度与结果。 */
+class WebpLibwebpActivity : ComponentActivity() {
+
+    // 日志和忙碌状态驱动 Compose；任务结束前禁用再次提交。
+    private val output = MediaOutput()
+
     private lateinit var pickImagesLauncher: ActivityResultLauncher<Array<String>>
 
     private val MAX_DECODE_DIM = 2000
     private val WEBP_QUALITY = 75f
 
-    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityWebpLibwebpBinding =
-        ActivityWebpLibwebpBinding.inflate(inflater)
-
-    override fun onViewCreated(savedInstanceState: Bundle?) {
-
-        binding.tvHeader.text = if (LibWebpNative.isAvailable) {
-            "libwebp JNI 已加载：使用原生编码"
-        } else {
-            "libwebp JNI 未加载：将使用 Bitmap.compress 作为降级"
-        }
-
+    /** 在创建阶段注册文档选择回调；重组只读取状态，不重复注册或启动转换。 */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         pickImagesLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             if (uris.isNullOrEmpty()) {
                 Toast.makeText(this, "未选择图片", Toast.LENGTH_SHORT).show()
@@ -45,17 +44,26 @@ class WebpLibwebpActivity : BaseActivity<ActivityWebpLibwebpBinding>() {
                 convertUris(uris)
             }
         }
-
-        binding.btnPickAndConvert.setOnClickListener { pickImagesLauncher.launch(arrayOf("image/*")) }
+        setContent {
+            MediaPage("libwebp 转换", { finish() }) {
+                Text("原分辨率 · 质量 75 · 输出 Pictures/StudyDemoWebP")
+                Text(if (LibWebpNative.isAvailable) "libwebp JNI 已加载：使用原生编码" else "libwebp JNI 未加载：使用 Bitmap.compress 降级")
+                Button(onClick = { pickImagesLauncher.launch(arrayOf("image/*")) }, enabled = !output.running, modifier = Modifier.fillMaxWidth()) { Text("选择 JPG/PNG 并转换") }
+                if (output.running) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                MediaResult(output.text)
+            }
+        }
     }
 
+    /** 串行处理所选 JPG/PNG；保留 JNI 优先、平台降级与每项保存结果。 */
     private fun convertUris(uris: List<Uri>) {
-        lifecycleScope.launch {
-            binding.tvResult.text = "开始转换，共 ${uris.size} 张图片…"
+        output.launch(this) {
+            output.text = "开始转换，共 ${uris.size} 张图片…"
             var success = 0
             val logs = StringBuilder()
             withContext(Dispatchers.IO) {
                 for ((i, uri) in uris.withIndex()) {
+                    ensureActive()
                     val mime = contentResolver.getType(uri) ?: guessMimeFromUri(uri)
                     if (mime != null && !isJpgOrPng(mime)) {
                         logs.append("跳过非 JPG/PNG：").append(mime).append('\n')
@@ -81,11 +89,11 @@ class WebpLibwebpActivity : BaseActivity<ActivityWebpLibwebpBinding>() {
                         logs.append("保存失败：").append(uri).append('\n')
                     }
                     withContext(Dispatchers.Main) {
-                        binding.tvResult.text = "处理中 (${i + 1}/${uris.size})…"
+                        output.text = "处理中 (${i + 1}/${uris.size})…"
                     }
                 }
             }
-            binding.tvResult.text = "转换完成：成功 ${success}/${uris.size}\n\n$logs"
+            output.text = "转换完成：成功 ${success}/${uris.size}\n\n$logs"
             Toast.makeText(this@WebpLibwebpActivity, "转换完成：成功 ${success}/${uris.size}", Toast.LENGTH_LONG).show()
         }
     }

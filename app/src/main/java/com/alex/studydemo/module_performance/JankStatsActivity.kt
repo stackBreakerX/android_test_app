@@ -1,146 +1,98 @@
 package com.alex.studydemo.module_performance
 
-import android.icu.lang.UCharacter.GraphemeClusterBreak.T
 import android.os.Bundle
 import android.os.SystemClock
-import android.os.Looper
-import android.util.Log
-import android.view.LayoutInflater
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.metrics.performance.JankStats
-import com.alex.studydemo.base.BaseActivity
-import com.alex.studydemo.databinding.ActivityJankStatsBinding
-import com.blankj.utilcode.util.ThreadUtils
+import com.alex.studydemo.ui.StudyTheme
 import java.io.File
-import java.io.FileWriter
-import java.io.BufferedWriter
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.concurrent.Executors
 
-class JankStatsActivity : BaseActivity<ActivityJankStatsBinding>() {
+/** 使用真实窗口帧数据驱动 Compose 仪表；日志在单线程队列写入，避免诊断动作干扰被测帧。 */
+class JankStatsActivity : ComponentActivity() {
+    private var stats: JankStats? = null
+    private val writer = Executors.newSingleThreadExecutor()
+    private var tracking by mutableStateOf(true)
+    private var lastEvent by mutableStateOf("等待帧数据")
+    private var slowFrames by mutableIntStateOf(0)
+    private var failure by mutableStateOf("")
+    private lateinit var logFile: File
 
-    private var jankStats: JankStats? = null
-    private var logFile: File? = null
-    private var logWriter: BufferedWriter? = null
-    private val mainThread by lazy { Looper.getMainLooper().thread }
-
-    private val TAG = "JankStatsActivity"
-
-    override fun inflateBinding(inflater: LayoutInflater): ActivityJankStatsBinding =
-        ActivityJankStatsBinding.inflate(inflater)
-
-    override fun onViewCreated(savedInstanceState: Bundle?) {
-        supportActionBar?.title = "JankStats 卡顿检测"
-
-        prepareLogFile()
-        binding.tvLogPath.text = logFile?.absolutePath ?: ""
-
-        binding.btnSimulateJank.setOnClickListener {
-            simulateMainThreadJank()
-        }
-
-        binding.btnToggleTracking.setOnClickListener {
-            jankStats?.let { js ->
-                val enable = !js.isTrackingEnabled
-                js.isTrackingEnabled = enable
-                binding.tvStatus.text = if (enable) "监控中" else "已暂停"
-            }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (jankStats == null) {
-            jankStats = JankStats.createAndTrack(window) { frameData ->
-                val uiNanos = frameData.frameDurationUiNanos
-                val uiMs = uiNanos / 1_000_000.0
-                val budget = frameBudgetMs()
-                val isSlow = uiMs > budget * 1.2
-                val isFrozen = uiMs > 700.0
-                val isCustomJank = isSlow || isFrozen
-                if (isCustomJank) {
-                    val line = formatFrameData(uiNanos, isCustomJank)
-                    val stack = formatStackTrace(mainThread.stackTrace)
-                    logWriter?.apply {
-                        write(line)
-                        newLine()
-                        write(stack)
-                        newLine()
-                        flush()
-                    }
-                    ThreadUtils.runOnUiThread {
-                        binding.tvLastEvent.text = line
-                        binding.tvJankInfo.text = "$line\n$stack"
+    /** 文件保存在应用私有目录，不需要存储权限；错误会显示在页面而非中断实验。 */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        logFile = File(filesDir, "jank_${System.currentTimeMillis()}.txt")
+        setContent {
+            StudyTheme {
+                Surface(Modifier.fillMaxSize()) {
+                    Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        TextButton(onClick = ::finish) { Text("‹ 返回工程") }
+                        Text("帧率观测", style = MaterialTheme.typography.headlineLarge)
+                        Text("JankStats · 真实窗口帧耗时", color = MaterialTheme.colorScheme.primary)
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(if (tracking) "监控中" else "已暂停")
+                                Text("$slowFrames 个慢帧", style = MaterialTheme.typography.headlineMedium)
+                                Text(lastEvent)
+                            }
+                        }
+                        Button(onClick = {
+                            tracking = !tracking
+                            stats?.isTrackingEnabled = tracking
+                        }) { Text(if (tracking) "暂停监控" else "开始监控") }
+                        Button(onClick = {
+                            // 故意阻塞主线程以生成慢帧，只用于用户主动触发的性能实验。
+                            window.decorView.post { SystemClock.sleep(1200) }
+                        }) { Text("模拟主线程卡顿（1.2 秒）") }
+                        Text("日志路径", style = MaterialTheme.typography.titleMedium)
+                        Text(logFile.absolutePath, style = MaterialTheme.typography.bodySmall)
+                        if (failure.isNotEmpty()) Text(failure, color = MaterialTheme.colorScheme.error)
+                        Text("慢帧阈值：当前刷新周期的 1.2 倍。返回或切到后台时暂停采集。")
                     }
                 }
             }
-            binding.tvStatus.text = "监控中"
-        } else {
-            jankStats?.isTrackingEnabled = true
-            binding.tvStatus.text = "监控中"
         }
     }
 
+    /** 回调只保存慢帧快照；界面更新切回主线程，写入失败不会导致采样线程崩溃。 */
+    override fun onResume() {
+        super.onResume()
+        if (stats == null) stats = JankStats.createAndTrack(window) { frame ->
+            val duration = frame.frameDurationUiNanos / 1_000_000.0
+            val budget = 1000.0 / (window.decorView.display?.refreshRate ?: 60f)
+            if (duration > budget * 1.2) {
+                val line = "ui=%.2fms  budget=%.2fms".format(duration, budget)
+                runOnUiThread { slowFrames++; lastEvent = line }
+                writer.execute {
+                    try { logFile.appendText("${System.currentTimeMillis()} $line\n") }
+                    catch (error: java.io.IOException) { runOnUiThread { failure = "日志写入失败：${error.message}" } }
+                }
+            }
+        }
+        stats?.isTrackingEnabled = tracking
+    }
+
+    /** 暂停 Activity 后停止回调，避免后台窗口继续计入当前实验。 */
     override fun onPause() {
+        stats?.isTrackingEnabled = false
         super.onPause()
-        jankStats?.isTrackingEnabled = false
-        binding.tvStatus.text = "已暂停"
     }
 
+    /** shutdown 会排空已提交写入，不在主线程等待磁盘完成。 */
     override fun onDestroy() {
-        try {
-            logWriter?.flush()
-            logWriter?.close()
-        } catch (_: Throwable) {}
-        logWriter = null
-        jankStats = null
+        stats?.isTrackingEnabled = false
+        stats = null
+        writer.shutdown()
         super.onDestroy()
-    }
-
-    private fun prepareLogFile() {
-        val ext = getExternalFilesDir("Performance")
-        val dir = ext ?: File(filesDir, "Performance").apply { mkdirs() }
-        val name = "jank_log_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".txt"
-        logFile = File(dir, name)
-        logWriter = BufferedWriter(FileWriter(logFile!!, true))
-    }
-
-    private fun simulateMainThreadJank() {
-        binding.tvStatus.text = "模拟卡顿中..."
-        SystemClock.sleep(600)
-        repeat(5) { SystemClock.sleep(120) }
-        binding.tvStatus.text = "模拟完成"
-    }
-
-    private fun formatFrameData(uiNanos: Long, isJank: Boolean): String {
-        val ts = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
-        val uiMs = uiNanos / 1_000_000.0
-        val budget = frameBudgetMs()
-        return "[$ts] jank=$isJank ui=${"%.2f".format(uiMs)}ms budget=${"%.2f".format(budget)}ms"
-    }
-
-    private fun formatStackTrace(stack: Array<StackTraceElement>, limit: Int = 30): String {
-        val sb = StringBuilder()
-        sb.append("stacktrace:\n")
-        val size = minOf(stack.size, limit)
-        for (i in 0 until size) {
-            val e = stack[i]
-            sb.append("    at ")
-            sb.append(e.className)
-            sb.append(".")
-            sb.append(e.methodName)
-            sb.append("(")
-            sb.append(e.fileName ?: "Unknown")
-            sb.append(":")
-            sb.append(e.lineNumber)
-            sb.append(")\n")
-        }
-        if (stack.size > limit) sb.append("    ... \n")
-        return sb.toString()
-    }
-
-    private fun frameBudgetMs(): Double {
-        val rate = binding.root.display?.refreshRate ?: window.decorView.display?.refreshRate ?: 60f
-        return 1000.0 / rate
     }
 }

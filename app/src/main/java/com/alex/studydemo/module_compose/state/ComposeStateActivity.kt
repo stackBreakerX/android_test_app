@@ -37,7 +37,7 @@ class ComposeStateActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
+            com.alex.studydemo.ui.StudyTheme {
                 // rememberSaveable 在旋转或系统重建时恢复计数，重组时复用同一份状态。
                 var count by rememberSaveable { mutableStateOf(0) }
                 Surface(Modifier.fillMaxSize()) {

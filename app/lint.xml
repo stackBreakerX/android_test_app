@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- utilcode 自带通知方法，本应用没有调用；只忽略来自该依赖类的未使用通知权限提示。 -->
+    <issue id="NotificationPermission">
+        <ignore regexp="com\.blankj\.utilcode\.util\.NotificationUtils" />
+    </issue>
+</lint>

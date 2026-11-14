@@ -35,9 +35,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /**
- * Class responsible to animate and provide a fast scroller.
+ * 提供快速滚动条的绘制、拖动和显隐动画；保持包级可见，供本包 RecyclerView 使用。
+ * 类本身不是为测试而放宽可见性，仅测试需要访问的成员保留 VisibleForTesting 标记。
  */
-@VisibleForTesting
 class FastScroller extends RecyclerView.ItemDecoration implements RecyclerView.OnItemTouchListener {
     @IntDef({STATE_HIDDEN, STATE_VISIBLE, STATE_DRAGGING})
     @Retention(RetentionPolicy.SOURCE)

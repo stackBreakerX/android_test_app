@@ -51,11 +51,12 @@ import androidx.compose.ui.unit.sp
  * 侧滑组件与 iOS 实现难度对比见 [SwipeActionRow] 的 KDoc。
  */
 class SwipeActionsActivity : ComponentActivity() {
+    /** 页面沿用应用外观设置，侧滑状态由 Compose 管理。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            com.alex.studydemo.ui.StudyTheme {
                 MessagesScreen(onBack = ::finish)
             }
         }

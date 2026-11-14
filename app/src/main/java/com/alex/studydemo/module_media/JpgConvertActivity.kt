@@ -13,18 +13,28 @@ import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import com.alex.studydemo.base.BaseActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.*
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import com.alex.studydemo.databinding.ActivityJpgConvertBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import java.util.Locale
 import java.io.BufferedOutputStream
 import java.io.IOException
 import java.io.OutputStream
 
 
-class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
+/** 保留媒体扫描、编解码和输出协议，由 Compose 状态展示进度与结果。 */
+class JpgConvertActivity : ComponentActivity() {
+
+    // 日志和忙碌状态驱动 Compose；任务结束前禁用再次提交。
+    private val output = MediaOutput()
+
     private val JPEG_QUALITY = 85
-    // Add UI-only counters for native decode usage
+    // 保留原生解码统计字段，实际路径由 lastNativeSuccess 记录。
     private var nativeDecodeSuccessCount = 0
     private var javaDecodeFallbackCount = 0
     private var lastNativeSuccess = false
@@ -38,15 +48,20 @@ class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
             }
         }
 
-    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityJpgConvertBinding =
-        ActivityJpgConvertBinding.inflate(inflater)
-
-    override fun onViewCreated(savedInstanceState: Bundle?) {
-        binding.btnScanAndConvertNative.setOnClickListener {
-            ensurePermissionAndStartNative()
+    /** 创建扫描操作与日志界面；重组只读取状态，不重复启动转换。 */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MediaPage("JPG 原生转换", { finish() }) {
+                Text("扫描非 JPG/PNG · 质量 85 · 透明图片铺白底 · 输出 Pictures/JpgConverted")
+                Button(onClick = { ensurePermissionAndStartNative() }, enabled = !output.running, modifier = Modifier.fillMaxWidth()) { Text("扫描并转换为 JPG（C 库）") }
+                if (output.running) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                MediaResult(output.text)
+            }
         }
     }
 
+    /** 检查当前系统的图库读取权限，授予后才能扫描原生转换候选图片。 */
     private fun ensurePermissionAndStartNative() {
         val permission = if (Build.VERSION.SDK_INT >= 33) {
             Manifest.permission.READ_MEDIA_IMAGES
@@ -63,18 +78,22 @@ class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
         }
     }
 
+    /** 在主线程追加转换日志，保留已有输出以便比较每张图片的处理结果。 */
     private fun log(message: String) {
-        binding.tvResult.post { binding.tvResult.append("\n$message") }
+        runOnUiThread { output.text += "\n$message" }
     }
 
+    /** 在生命周期内串行扫描并执行原生优先转换；页面销毁后不开始下一张图片。 */
     private fun startScanAndConvertNative() {
-        Thread {
+        output.launch(this, Dispatchers.IO) {
             try {
                 log("[C 库] 可用性：LibDngNative.isAvailable=${LibDngNative.isAvailable} | 设备 ABI=${Build.SUPPORTED_ABIS.joinToString()}")
                 val nonJpgPngUris = queryNonJpgPngImages()
-                binding.tvResult.post { binding.tvResult.text = "" }
+                runOnUiThread { output.text = "" }
                 nonJpgPngUris.forEachIndexed { _, uri ->
+                    ensureActive()
                     val ok = convertSingleToJpgNative(uri)
+                    log("${if (ok) "成功" else "失败"}：$uri")
                     log("----------------------------------------")
                 }
                 runOnUiThread {
@@ -86,7 +105,7 @@ class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
                     Toast.makeText(this@JpgConvertActivity, "转换失败: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
-        }.start()
+        }
     }
 
     private fun queryNonJpgPngImages(): List<Uri> {
@@ -144,7 +163,7 @@ class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
             val isPng = mime?.contains("png") == true
             val isWebp = mime?.contains("webp") == true
             val isDng = mime?.contains("dng") == true || mime?.contains("x-adobe-dng") == true || lowerNameCandidate.endsWith(".dng")
-            
+
             val name = info.displayName ?: uri.lastPathSegment ?: uri.toString()
             log("[C 库] 待解码：$name, mime=${mime ?: "unknown"}")
             log("[C 库] 类型判定：isDng=$isDng, isJpeg=$isJpeg, isPng=$isPng, isWebp=$isWebp, 文件名=$lowerNameCandidate")
@@ -260,6 +279,7 @@ class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
         return out
     }
 
+    /** 优先使用原生编解码，失败时由平台接管；保留尺寸、耗时与编码路径日志。 */
     private fun convertSingleToJpgNative(srcUri: Uri): Boolean {
         val tStart = System.nanoTime()
         val tDecodeStart = System.nanoTime()
@@ -268,20 +288,20 @@ class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
         val w = bitmap.width
         val h = bitmap.height
         val hasAlpha = bitmap.hasAlpha()
-    
+
         val tFlattenStart = System.nanoTime()
         val flattened = flattenIfHasAlpha(bitmap)
         val tFlattenMs = (System.nanoTime() - tFlattenStart) / 1_000_000
-    
+
         var outUri: Uri? = null
         var tEncodeMs = 0L
         var usedNativeEncode = false
-    
+
         val result = try {
             val displayName = getDisplayName(srcUri) ?: System.currentTimeMillis().toString()
             val baseName = displayName.substringBeforeLast('.')
             val jpgName = "$baseName.jpg"
-    
+
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, jpgName)
                 put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
@@ -290,11 +310,11 @@ class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 }
             }
-    
+
             val resolver = contentResolver
             val targetCollection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
             outUri = resolver.insert(targetCollection, values) ?: return false
-    
+
             var ok = false
             var fd: ParcelFileDescriptor? = null
             try {
@@ -309,9 +329,9 @@ class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
             } finally {
                 try { fd?.close() } catch (_: IOException) {}
             }
-    
+
             if (!ok) {
-                // Fallback to Java compress if native not available or failed
+                // 原生编码不可用或失败时使用平台 JPEG 压缩，保持质量参数一致。
                 var out: OutputStream? = null
                 try {
                     val tEncodeStart = System.nanoTime()
@@ -326,7 +346,7 @@ class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
                     try { out?.close() } catch (_: IOException) {}
                 }
             }
-    
+
             if (Build.VERSION.SDK_INT >= 29) {
                 val done = ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }
                 resolver.update(outUri, done, null, null)
@@ -338,7 +358,7 @@ class JpgConvertActivity : BaseActivity<ActivityJpgConvertBinding>() {
             if (flattened !== bitmap) flattened.recycle()
             bitmap.recycle()
         }
-    
+
         val tTotalMs = (System.nanoTime() - tStart) / 1_000_000
         val srcInfo = getMediaInfo(srcUri)
         val srcName = srcInfo.displayName ?: getDisplayName(srcUri) ?: srcUri.lastPathSegment ?: srcUri.toString()

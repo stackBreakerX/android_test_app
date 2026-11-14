@@ -11,14 +11,15 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import android.widget.Toast
-import com.alex.studydemo.base.BaseActivity
-import androidx.lifecycle.lifecycleScope
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.*
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import com.alex.studydemo.databinding.ActivityWebpConvertBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.sync.Semaphore
@@ -27,7 +28,12 @@ import kotlin.math.min
 import java.io.BufferedOutputStream
 import java.io.IOException
 
-class WebpConvertActivity : BaseActivity<ActivityWebpConvertBinding>() {
+/** 保留媒体扫描、编解码和输出协议，由 Compose 状态展示进度与结果。 */
+class WebpConvertActivity : ComponentActivity() {
+
+    // 日志和忙碌状态驱动 Compose；任务结束前禁用再次提交。
+    private val output = MediaOutput()
+
 
     private lateinit var pickImagesLauncher: ActivityResultLauncher<Array<String>>
 
@@ -35,11 +41,9 @@ class WebpConvertActivity : BaseActivity<ActivityWebpConvertBinding>() {
     private val WEBP_QUALITY = 75
     private val PARALLELISM = 1
 
-    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityWebpConvertBinding =
-        ActivityWebpConvertBinding.inflate(inflater)
-
-    override fun onViewCreated(savedInstanceState: Bundle?) {
-
+    /** 在创建阶段注册文档选择回调；重组只读取状态，不重复注册或启动转换。 */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         pickImagesLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             if (uris.isNullOrEmpty()) {
                 Toast.makeText(this, "未选择图片", Toast.LENGTH_SHORT).show()
@@ -47,20 +51,25 @@ class WebpConvertActivity : BaseActivity<ActivityWebpConvertBinding>() {
                 convertUrisToWebp(uris)
             }
         }
-
-        binding.btnPickAndConvert.setOnClickListener {
-            // 使用系统图库选择多张图片
-            pickImages()
+        setContent {
+            MediaPage("WebP 转换", { finish() }) {
+                Text("原分辨率 · 质量 75 · 输出 Pictures/StudyDemoWebP")
+                Button(onClick = { pickImages() }, enabled = !output.running, modifier = Modifier.fillMaxWidth()) { Text("选择 JPG/PNG 转 WebP") }
+                if (output.running) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                MediaResult(output.text)
+            }
         }
     }
 
+    /** 通过系统文档选择器获得多张图片的临时读取权限，不预先扫描图库。 */
     private fun pickImages() {
         pickImagesLauncher.launch(arrayOf("image/*"))
     }
 
+    /** 在 IO 线程按并发上限转换所选图片；主线程显示逐项进度和完整耗时汇总。 */
     private fun convertUrisToWebp(uris: List<Uri>) {
-        lifecycleScope.launch {
-            binding.tvResult.text = "开始转换，共 ${uris.size} 张图片…"
+        output.launch(this) {
+            output.text = "开始转换，共 ${uris.size} 张图片…"
             val tAllStart = System.nanoTime()
 
             val semaphore = Semaphore(PARALLELISM)
@@ -96,7 +105,7 @@ class WebpConvertActivity : BaseActivity<ActivityWebpConvertBinding>() {
                             return@withPermit false to "异常：${e.message}"
                         } finally {
                             withContext(Dispatchers.Main) {
-                                binding.tvResult.text = "处理中 (${index + 1}/${uris.size})…" 
+                                output.text = "处理中 (${index + 1}/${uris.size})…"
                             }
                         }
                     }
@@ -106,7 +115,7 @@ class WebpConvertActivity : BaseActivity<ActivityWebpConvertBinding>() {
             val successCount = results.count { it.first }
             val logs = results.joinToString("\n") { it.second }
             val totalMs = (System.nanoTime() - tAllStart) / 1_000_000
-            binding.tvResult.text = "转换完成：成功 ${successCount}/${uris.size}，用时 ${totalMs}ms\n\n$logs"
+            output.text = "转换完成：成功 ${successCount}/${uris.size}，用时 ${totalMs}ms\n\n$logs"
             Toast.makeText(this@WebpConvertActivity, "转换完成：成功 ${successCount}/${uris.size}，${totalMs}ms", Toast.LENGTH_LONG).show()
         }
     }

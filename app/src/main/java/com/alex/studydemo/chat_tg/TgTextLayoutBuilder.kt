@@ -1,5 +1,6 @@
 package com.alex.studydemo.chat_tg
 
+import android.annotation.SuppressLint
 import android.os.Build
 import android.text.Layout
 import android.text.StaticLayout
@@ -41,11 +42,14 @@ object TgTextLayoutBuilder {
         return blocks
     }
 
+    /** 按调用方提供的像素宽度构建布局；API 23 起使用高质量断行，旧系统保留构造方法回退。 */
     private fun buildLayout(text: CharSequence, paint: TextPaint, width: Int): StaticLayout {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
-                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            // Layout 常量从 API 23 可用，且与新注解列举的 LineBreaker 常量同值；仅抑制此调用的误报。
+            @SuppressLint("WrongConstant")
+            val builder = StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
                 .setBreakStrategy(Layout.BREAK_STRATEGY_HIGH_QUALITY)
+            builder.setAlignment(Layout.Alignment.ALIGN_NORMAL)
                 .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NONE)
                 .setIncludePad(false)
                 .build()

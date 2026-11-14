@@ -81,7 +81,8 @@ fun IosModalDemo(
     presentationStyle: IosModalPresentationStyle = IosModalPresentationStyle.Stacked,
 ) {
     val overlay = presentationStyle == IosModalPresentationStyle.Overlay
-    val dark = isSystemInDarkTheme()
+    val dark = com.alex.studydemo.ui.StudyDarkTheme()
+    com.alex.studydemo.ui.StudySystemBars(dark)
     val colors = if (dark) darkColorScheme(
         primary = Color(0xFF0A84FF),
         onPrimary = Color.White,

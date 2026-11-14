@@ -1,0 +1,45 @@
+package com.alex.studydemo.ui
+
+/** 稳定的入口标识用于收藏和最近访问；类名保留原 Activity 身份以兼容已有路由。 */
+data class LearningEntry(val title: String, val summary: String, val topic: String, val target: String, val tab: Int)
+
+/** 四个工作台按学习目标分组，具体实验直接可达，避免重复经过入口列表。 */
+val learningEntries = listOf(
+    LearningEntry("消息实验室", "文字、图片、视频与文件气泡", "聊天", "chat_tg.TgTextChatActivity", 0),
+    LearningEntry("Compose 组件馆", "模态的两种背景样式与组件示例", "Compose", "module_compose.ComposeDemoActivity", 0),
+    LearningEntry("模态与手势", "背景缩放、拖动关闭与滚动衔接", "Compose", "module_compose.modal.IosModalDemoActivity", 0),
+    LearningEntry("信息侧滑", "左右操作与完整侧滑", "Compose", "module_compose.swipe.SwipeActionsActivity", 0),
+    LearningEntry("状态与重组", "状态驱动 UI 与配置恢复", "Compose", "module_compose.state.ComposeStateActivity", 0),
+    LearningEntry("双阶段页头", "折叠、吸顶与滚动", "布局", "module_view.TwoStageHeaderActivity", 0),
+    LearningEntry("长文本排版", "展开收起与文本布局", "布局", "module_view.FullTextActivity", 0),
+    LearningEntry("自定义绘制", "消息布局与绘制实验", "布局", "module_view.CustomerViewActivity", 0),
+    LearningEntry("消息长列表", "消息排列与滚动", "布局", "module_view.MessageListActivity", 0),
+    LearningEntry("消息布局对比", "另一种消息布局实现", "布局", "module_view.MessageListLacActivity", 0),
+    LearningEntry("列表工作台", "插入、删除与数据更新", "列表", "module_recyclerview.RecyclerViewActivity", 0),
+    LearningEntry("列表布局对比", "布局管理与滚动定位", "列表", "module_recyclerview.RecyclerViewActivity1", 0),
+    LearningEntry("列表动画", "更新时的过渡效果", "列表", "module_recyclerview.RecyclerViewAnimationActivity", 0),
+    LearningEntry("Item 动画", "消息项增删与变换", "动画", "listdemo.AnimListActivity", 0),
+    LearningEntry("输入框动画", "输入、键盘与内容联动", "动画", "module_animation.ChatInputAnimActivity", 0),
+    LearningEntry("异常与取消", "子协程失败与监督作用域", "协程", "ui.CoroutineFailureActivity", 1),
+    LearningEntry("async 与生命周期", "并行合并与生命周期 Flow", "协程", "module_coroutine.CoroutineDemoActivity", 1),
+    LearningEntry("Channel 实验", "协程通信、缓冲与取消", "协程", "module_coroutine.ChannelActivity", 1),
+    LearningEntry("Flow 实验", "数据流与生命周期", "协程", "module_coroutine.FlowActivity", 1),
+    LearningEntry("Flow 对比", "不同数据流的订阅行为", "协程", "module_flow.FlowCompareActivity", 1),
+    LearningEntry("Room 数据库", "SQL、DAO 与事务", "存储", "module_room.RoomActivity", 1),
+    LearningEntry("网络请求", "请求执行与结果观察", "网络", "network.request.NetworkRequestActivity", 1),
+    LearningEntry("网络状态", "连接变化与状态监听", "网络", "network.monitor.NetworkMonitorActivity", 1),
+    LearningEntry("图片选择", "图库、权限与原图", "图片", "module_image.ImagePickerActivity", 2),
+    LearningEntry("缩略图实验", "不同读取方式的对比", "图片", "module_image.FastThumbnailActivity", 2),
+    LearningEntry("DNG 处理", "RAW 解码与参数调整", "图片", "module_image.DngProcessActivity", 2),
+    LearningEntry("WebP 转换", "系统编码与质量调整", "编码", "module_media.WebpConvertActivity", 2),
+    LearningEntry("libwebp", "Native 编码与参数控制", "编码", "module_media.WebpLibwebpActivity", 2),
+    LearningEntry("PNG 转换", "无损编码与压缩比较", "编码", "module_media.PngConvertActivity", 2),
+    LearningEntry("JPEG 转换", "编码质量与体积比较", "编码", "module_media.JpgConvertActivity", 2),
+    LearningEntry("透明通道", "PNG Alpha 检测", "图片", "module_media.PngAlphaCheckActivity", 2),
+    LearningEntry("系统语音识别", "麦克风权限与语音转文字", "语音", "module_media.SpeechRecognizerSttActivity", 2),
+    LearningEntry("Whisper 离线识别", "本地模型与语音转写", "语音", "module_media.WhisperAndroidSttActivity", 2),
+    LearningEntry("帧率观测", "JankStats 与卡顿实验", "性能", "module_performance.JankStatsActivity", 3),
+    LearningEntry("依赖组装", "Driver 与 Engine 的手动装配", "架构", "hilt.HiltMainActivity", 3),
+    LearningEntry("路由与传参", "ARouter 页面跳转与拦截", "架构", "arouter.ArouterMainActivity", 3),
+    LearningEntry("Kotlin 高阶函数", "函数参数与调用实验", "语言", "module_advanced_function.AdvancedFunctionActivity", 3),
+)

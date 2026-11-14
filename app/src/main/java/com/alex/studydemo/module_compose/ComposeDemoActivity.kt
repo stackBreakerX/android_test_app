@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -34,24 +36,24 @@ import com.alex.studydemo.module_compose.components.iosmodal.IosModalPresentatio
 import com.alex.studydemo.module_compose.state.ComposeStateActivity
 import com.alex.studydemo.module_compose.swipe.SwipeActionsActivity
 
-/** 首页唯一的 Compose 入口，具体示例都在此选择，新增示例无需再向 MainActivity 添加按钮。 */
+/** Compose 组件馆按卡片展示同一主题的交互示例，也保留旧入口供外部导航。 */
 class ComposeDemoActivity : ComponentActivity() {
     /** 示例目录独立于具体示例的状态，返回目录后可继续进入其他示例。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
+            com.alex.studydemo.ui.StudyTheme {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Column(Modifier.safeDrawingPadding().padding(horizontal = 20.dp)) {
-                        TextButton(onClick = ::finish) { Text("‹ 返回首页") }
+                        TextButton(onClick = ::finish) { Text("‹ 返回") }
                         Text("Compose 示例", fontSize = 30.sp, fontWeight = FontWeight.Bold)
                         Text(
                             "组件与交互演示",
                             Modifier.padding(top = 8.dp, bottom = 24.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        LazyColumn {
+                        LazyVerticalGrid(columns = GridCells.Adaptive(160.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             item {
                                 ComposeEntry("iOS 模态弹窗（背景缩放）", "底部卡片、跟手拖动、列表滚动衔接", "compose_entry_modal") {
                                     startActivity(Intent(this@ComposeDemoActivity, IosModalDemoActivity::class.java))
@@ -104,5 +106,5 @@ private fun ComposeEntry(title: String, description: String, tag: String, onClic
             )
         }
     }
-    Spacer(Modifier.height(12.dp))
+
 }

@@ -15,47 +15,68 @@ import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import com.alex.studydemo.base.BaseActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.*
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
-import com.alex.studydemo.databinding.ActivityPngConvertBinding
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.BufferedOutputStream
 import java.io.IOException
 import java.io.OutputStream
 
-// Add native PNG
+// 原生 PNG 编码在不可用时由平台压缩器接管。
 import com.alex.studydemo.module_media.LibPngNative
 
-class PngConvertActivity : BaseActivity<ActivityPngConvertBinding>() {
+/** 保留媒体扫描、编解码和输出协议，由 Compose 状态展示进度与结果。 */
+class PngConvertActivity : ComponentActivity() {
 
-    // Native PNG compression level: 0-9 (speed vs size)
+    // 日志和忙碌状态驱动 Compose；任务结束前禁用再次提交。
+    private val output = MediaOutput()
+
+
+    // PNG 压缩等级范围 0～9；等级 3 在速度与体积之间折中。
     private val PNG_COMPRESSION_LEVEL = 3
+
+    // 权限弹窗返回后恢复用户选择的输出格式，不能默认切换成 PNG。
+    private var pendingJpg = false
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) {
-                startScanAndConvert()
+                if (pendingJpg) startScanAndConvertJpg() else startScanAndConvert()
             } else {
                 Toast.makeText(this, "未授予图片读取权限，无法扫描图库", Toast.LENGTH_SHORT).show()
             }
         }
 
-    override fun inflateBinding(inflater: android.view.LayoutInflater): ActivityPngConvertBinding =
-        ActivityPngConvertBinding.inflate(inflater)
-
-    override fun onViewCreated(savedInstanceState: Bundle?) {
-        binding.btnScanAndConvert.setOnClickListener {
-            ensurePermissionAndStart()
-        }
-        binding.btnScanAndConvertJpg.setOnClickListener {
-            ensurePermissionAndStartJpg()
+    /** 创建扫描操作与日志界面；重组只读取状态，不重复启动转换。 */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        pendingJpg = savedInstanceState?.getBoolean("media_pending_jpg") ?: false
+        setContent {
+            MediaPage("PNG / JPG 批量转换", { finish() }) {
+                Text("PNG 压缩等级 3；PNG 扫描排除 JPG/PNG/WebP/GIF。输出 Pictures/PngConverted 或 JpgConverted。")
+                Button(onClick = { ensurePermissionAndStart() }, enabled = !output.running, modifier = Modifier.fillMaxWidth()) { Text("扫描并转换为 PNG") }
+                Button(onClick = { ensurePermissionAndStartJpg() }, enabled = !output.running, modifier = Modifier.fillMaxWidth()) { Text("扫描并转换为 JPG（质量 100）") }
+                if (output.running) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                MediaResult(output.text)
+            }
         }
     }
 
+    /** 系统在权限弹窗期间重建页面时，仍恢复到用户请求的转换格式。 */
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("media_pending_jpg", pendingJpg)
+        super.onSaveInstanceState(outState)
+    }
+
+    /** 按 Android 版本选择图库读取权限；已授权立即转换，否则等待权限回调。 */
     private fun ensurePermissionAndStart() {
+        pendingJpg = false
         val permission = if (Build.VERSION.SDK_INT >= 33) {
             Manifest.permission.READ_MEDIA_IMAGES
         } else {
@@ -71,7 +92,9 @@ class PngConvertActivity : BaseActivity<ActivityPngConvertBinding>() {
         }
     }
 
+    /** 记录 JPG 输出意图，再按 Android 版本请求图库读取权限。 */
     private fun ensurePermissionAndStartJpg() {
+        pendingJpg = true
         val permission = if (Build.VERSION.SDK_INT >= 33) {
             Manifest.permission.READ_MEDIA_IMAGES
         } else {
@@ -87,21 +110,24 @@ class PngConvertActivity : BaseActivity<ActivityPngConvertBinding>() {
         }
     }
 
+    /** 在主线程追加转换日志，保留已有输出以便比较每张图片的处理结果。 */
     private fun log(message: String) {
-        binding.tvResult.append("\n$message")
+        output.text += "\n$message"
     }
 
+    /** 在 IO 线程扫描并转换非 JPG/PNG/WebP/GIF 图片；逐项进度与失败原因回到主线程。 */
     private fun startScanAndConvert() {
-        lifecycleScope.launch(Dispatchers.IO) {
+        output.launch(this, Dispatchers.IO) {
             try {
                 val nonJpgPngUris = queryNonJpgPngImages()
                 withContext(Dispatchers.Main) {
-                    binding.tvResult.text = "共找到 ${nonJpgPngUris.size} 张非 JPG/PNG/WEBP/GIF 图片，将开始转换为 PNG..."
+                    output.text = "共找到 ${nonJpgPngUris.size} 张非 JPG/PNG/WEBP/GIF 图片，将开始转换为 PNG..."
                 }
                 val tAllStart = System.nanoTime()
                 var success = 0
                 var fail = 0
                 nonJpgPngUris.forEachIndexed { index, uri ->
+                    ensureActive()
                     val name = getDisplayName(uri) ?: uri.lastPathSegment ?: uri.toString()
                     val ok = convertSingleToPng(uri)
                     if (ok) success++ else fail++
@@ -123,17 +149,19 @@ class PngConvertActivity : BaseActivity<ActivityPngConvertBinding>() {
         }
     }
 
+    /** 在 IO 线程把非 JPG 图片转换成质量 100 的 JPG；逐项计数并保留失败日志。 */
     private fun startScanAndConvertJpg() {
-        lifecycleScope.launch(Dispatchers.IO) {
+        output.launch(this, Dispatchers.IO) {
             try {
                 val nonJpgUris = queryNonJpgImages()
                 withContext(Dispatchers.Main) {
-                    binding.tvResult.text = "共找到 ${nonJpgUris.size} 张非 JPG 图片，将开始转换为 JPG（质量100）..."
+                    output.text = "共找到 ${nonJpgUris.size} 张非 JPG 图片，将开始转换为 JPG（质量100）..."
                 }
                 val tAllStart = System.nanoTime()
                 var success = 0
                 var fail = 0
                 nonJpgUris.forEachIndexed { index, uri ->
+                    ensureActive()
                     val name = getDisplayName(uri) ?: uri.lastPathSegment ?: uri.toString()
                     val ok = convertSingleToJpg(uri)
                     if (ok) success++ else fail++
@@ -190,7 +218,7 @@ class PngConvertActivity : BaseActivity<ActivityPngConvertBinding>() {
         val selection = "${MediaStore.MediaColumns.MIME_TYPE} IS NOT NULL AND ${MediaStore.MediaColumns.MIME_TYPE} != ? AND ${MediaStore.MediaColumns.MIME_TYPE} != ? AND ${MediaStore.MediaColumns.MIME_TYPE} != ? AND ${MediaStore.MediaColumns.MIME_TYPE} != ?"
         val selectionArgs = arrayOf("image/jpeg", "image/png", "image/webp", "image/gif")
         val sortOrder = MediaStore.Images.Media.DATE_ADDED + " DESC"
-    
+
         val uris = mutableListOf<Uri>()
         resolver.query(collection, projection, selection, selectionArgs, sortOrder)?.use { cursor ->
             val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
@@ -232,6 +260,7 @@ class PngConvertActivity : BaseActivity<ActivityPngConvertBinding>() {
     }
 
 
+    /** 按原分辨率编码 PNG，依次尝试原生 FD、字节数组与平台编码；返回保存是否成功。 */
     private fun convertSingleToPng(srcUri: Uri): Boolean {
         val tStart = System.nanoTime()
         val info = getMediaInfo(srcUri)
@@ -327,7 +356,7 @@ class PngConvertActivity : BaseActivity<ActivityPngConvertBinding>() {
         } catch (e: Exception) {
             result = false
             runOnUiThread {
-                binding.tvResult.text = "转换失败: ${e.message}".replace("\n", " ")
+                output.text = "转换失败: ${e.message}".replace("\n", " ")
             }
         }
         return result
@@ -345,6 +374,7 @@ class PngConvertActivity : BaseActivity<ActivityPngConvertBinding>() {
         }
     }
 
+    /** 按原分辨率输出质量 100 的 JPG；透明像素铺白底，结束时释放位图。 */
     private fun convertSingleToJpg(srcUri: Uri): Boolean {
         val tStart = System.nanoTime()
         val info = getMediaInfo(srcUri)

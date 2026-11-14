@@ -68,7 +68,6 @@ import androidx.annotation.RestrictTo;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.os.TraceCompat;
 import androidx.core.util.Consumer;
-import androidx.core.util.Preconditions;
 import androidx.core.view.AccessibilityDelegateCompat;
 import androidx.core.view.InputDeviceCompat;
 import androidx.core.view.MotionEventCompat;
@@ -96,6 +95,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A flexible view for providing a limited window into a large data set.
@@ -725,9 +725,15 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
         this(context, attrs, 0);
     }
 
+    /**
+     * 按 XML 属性和默认样式初始化列表；没有属性集时默认裁剪到内边距。
+     * defStyle 是默认样式属性 ID，属性数组中的首项对应 clipToPadding。
+     */
     public RecyclerView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
         if (attrs != null) {
+            // 此数组仅含 android.R.attr.clipToPadding，符合框架要求；ResourceType 将其误判为非样式属性数组。
+            @SuppressLint("ResourceType")
             TypedArray a = context.obtainStyledAttributes(attrs, CLIP_TO_PADDING_ATTR, defStyle, 0);
             mClipToPadding = a.getBoolean(0, true);
             a.recycle();
@@ -2694,16 +2700,14 @@ public class RecyclerView extends ViewGroup implements ScrollingView,
     }
 
     /**
-     * Set a {@link EdgeEffectFactory} for this {@link RecyclerView}.
-     * <p>
-     * When a new {@link EdgeEffectFactory} is set, any existing over-scroll effects are cleared
-     * and new effects are created as needed using
-     * {@link EdgeEffectFactory#createEdgeEffect(RecyclerView, int)}
+     * 设置边缘效果工厂，并清除已有的过度滚动效果；后续按需调用
+     * {@link EdgeEffectFactory#createEdgeEffect(RecyclerView, int)} 创建新效果。
      *
-     * @param edgeEffectFactory The {@link EdgeEffectFactory} instance.
+     * @param edgeEffectFactory 非空的边缘效果工厂
+     * @throws NullPointerException 工厂为空时抛出，此时不改变原工厂或边缘效果
      */
     public void setEdgeEffectFactory(@NonNull EdgeEffectFactory edgeEffectFactory) {
-        Preconditions.checkNotNull(edgeEffectFactory);
+        Objects.requireNonNull(edgeEffectFactory);
         mEdgeEffectFactory = edgeEffectFactory;
         invalidateGlows();
     }
